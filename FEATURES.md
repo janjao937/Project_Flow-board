@@ -1,4 +1,4 @@
-# Feature list — Workflow Design PWA
+# Feature list — Flowboard
 
 แอป PWA ออกแบบ workflow คล้าย Miro + Trello (board, roadmap, tasks, plan)  
 Stack: Next.js (TS), Tailwind, shadcn/ui, **modern UX** — Fastify, NATS, P2P, `npm run dev`, compose dev/staging, Cloudflare Tunnel

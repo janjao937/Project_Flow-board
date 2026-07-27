@@ -1,4 +1,4 @@
-import { ErrorCode, httpStatusForCode, messageKeyForCode } from "./errorCode.js";
+import { ErrorCode, httpStatusForCode, messageKeyForCode } from "./errorCode";
 
 export interface AppErrorOptions {
   details?: Record<string, unknown>;

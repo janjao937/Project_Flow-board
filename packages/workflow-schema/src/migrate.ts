@@ -1,4 +1,4 @@
-import { CURRENT_SCHEMA_VERSION, WorkflowManifest, WorkflowManifestSchema } from "./manifest.js";
+import { CURRENT_SCHEMA_VERSION, WorkflowManifest, WorkflowManifestSchema } from "./manifest";
 
 type RawManifest = Record<string, unknown> & { schemaVersion?: number };
 

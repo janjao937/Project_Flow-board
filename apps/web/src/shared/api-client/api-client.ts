@@ -1,0 +1,62 @@
+import { ERROR_CODE_META, ErrorCode, type ErrorResponseBody } from "@/shared/packages/errors";
+
+export class ApiError extends Error {
+  readonly code: ErrorCode;
+  readonly messageKey: string;
+  readonly requestId: string;
+  readonly details?: Record<string, unknown>;
+  readonly httpStatus: number;
+
+  constructor(body: ErrorResponseBody["error"], httpStatus: number) {
+    super(body.code);
+    this.name = "ApiError";
+    this.code = body.code;
+    this.messageKey = body.messageKey;
+    this.requestId = body.requestId;
+    this.details = body.details;
+    this.httpStatus = httpStatus;
+  }
+}
+
+export function isApiError(value: unknown): value is ApiError {
+  return value instanceof ApiError;
+}
+
+export async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const response = await fetch(`${base}${input}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    let payload: ErrorResponseBody | null = null;
+    try {
+      payload = (await response.json()) as ErrorResponseBody;
+    } catch {
+      payload = null;
+    }
+
+    if (payload?.error?.code) {
+      throw new ApiError(payload.error, response.status);
+    }
+
+    throw new ApiError(
+      {
+        code: ErrorCode.INTERNAL,
+        messageKey: ERROR_CODE_META.INTERNAL.messageKey,
+        requestId: response.headers.get("x-request-id") ?? "unknown",
+      },
+      response.status,
+    );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}

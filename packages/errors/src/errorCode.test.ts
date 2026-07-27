@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ERROR_CODE_META, ErrorCode, httpStatusForCode, messageKeyForCode } from "./errorCode.js";
+import { ERROR_CODE_META, ErrorCode, httpStatusForCode, messageKeyForCode } from "./errorCode";
 
 describe("errorCode", () => {
   it("has an http status and message key for every code", () => {

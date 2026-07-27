@@ -6,10 +6,10 @@ const TARGETS = [
   "packages/errors",
   "packages/permissions",
   "packages/workflow-schema",
+  "packages/flowpkg",
   "apps/api",
   "apps/web",
 ];
-
 let hadFailure = false;
 
 for (const dir of TARGETS) {

@@ -1,5 +1,5 @@
-import { AppError } from "./appError.js";
-import { ErrorCode } from "./errorCode.js";
+import { AppError } from "./appError";
+import { ErrorCode } from "./errorCode";
 
 export interface ErrorResponseBody {
   error: {

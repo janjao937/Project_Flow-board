@@ -1,0 +1,66 @@
+{
+  "brand": {
+    "name": "Flowboard",
+    "tagline": "บอร์ด งาน และแผน ในไฟล์ workflow เดียว"
+  },
+  "nav": {
+    "home": "หน้าแรก",
+    "open": "เปิด",
+    "save": "บันทึก",
+    "saveAs": "บันทึกเป็น",
+    "new": "สร้าง workflow",
+    "board": "บอร์ด",
+    "tasks": "งาน",
+    "join": "เข้าร่วม",
+    "theme": "ธีม",
+    "language": "ภาษา"
+  },
+  "home": {
+    "headline": "ออกแบบงาน เก็บเป็นไฟล์",
+    "sub": "สร้าง workflow วาดบนบอร์ด จัดงาน แล้วบันทึกเป็น .flowpkg ที่ย้ายหรือแชร์ได้",
+    "ctaNew": "สร้าง workflow",
+    "ctaOpen": "เปิด .flowpkg",
+    "recent": "ล่าสุด"
+  },
+  "workflow": {
+    "untitled": "Workflow ยังไม่มีชื่อ",
+    "saved": "บันทึกแล้ว",
+    "saveFailed": "บันทึกไม่สำเร็จ",
+    "openFailed": "เปิดไฟล์ไม่สำเร็จ",
+    "dirty": "ยังไม่ได้บันทึก",
+    "autoSaved": "บันทึกอัตโนมัติแล้ว"
+  },
+  "board": {
+    "addSticky": "โน้ต",
+    "select": "เลือก",
+    "pan": "เลื่อน",
+    "undo": "เลิกทำ",
+    "redo": "ทำซ้ำ",
+    "delete": "ลบ",
+    "emptyHint": "ดับเบิลคลิกเพื่อเพิ่มโน้ต"
+  },
+  "tasks": {
+    "addList": "เพิ่มรายการ",
+    "addCard": "เพิ่มการ์ด",
+    "cardTitle": "ชื่อการ์ด",
+    "listTitle": "ชื่อรายการ",
+    "labels": "ป้าย"
+  },
+  "errors": {
+    "validation": "ข้อมูลบางช่องไม่ถูกต้อง",
+    "notFound": "ไม่พบรายการ",
+    "joinCodeInvalid": "รหัสเข้าร่วมไม่ถูกต้อง",
+    "joinCodeExpired": "รหัสเข้าร่วมหมดอายุแล้ว",
+    "sessionNotFound": "ไม่พบเซสชัน",
+    "sessionEnded": "เจ้าของปิดเซสชันแล้ว",
+    "readOnly": "ดูได้อย่างเดียว",
+    "workflowPackInvalid": "ไฟล์ workflow ไม่ถูกต้อง",
+    "rateLimited": "ส่งคำขอมากเกินไป ลองใหม่ภายหลัง",
+    "unexpected": "เกิดข้อผิดพลาด"
+  },
+  "theme": {
+    "light": "สว่าง",
+    "dark": "มืด",
+    "system": "ตามระบบ"
+  }
+}

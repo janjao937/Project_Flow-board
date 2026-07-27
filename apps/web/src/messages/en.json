@@ -1,0 +1,66 @@
+{
+  "brand": {
+    "name": "Flowboard",
+    "tagline": "Board, tasks, and plans in one workflow file."
+  },
+  "nav": {
+    "home": "Home",
+    "open": "Open",
+    "save": "Save",
+    "saveAs": "Save As",
+    "new": "New workflow",
+    "board": "Board",
+    "tasks": "Tasks",
+    "join": "Join",
+    "theme": "Theme",
+    "language": "Language"
+  },
+  "home": {
+    "headline": "Design the work. Keep the file.",
+    "sub": "Create a workflow, sketch on a board, organize tasks, and save everything as a .flowpkg you can move or share.",
+    "ctaNew": "New workflow",
+    "ctaOpen": "Open .flowpkg",
+    "recent": "Recent"
+  },
+  "workflow": {
+    "untitled": "Untitled workflow",
+    "saved": "Saved",
+    "saveFailed": "Could not save",
+    "openFailed": "Could not open file",
+    "dirty": "Unsaved changes",
+    "autoSaved": "Auto-saved"
+  },
+  "board": {
+    "addSticky": "Sticky",
+    "select": "Select",
+    "pan": "Pan",
+    "undo": "Undo",
+    "redo": "Redo",
+    "delete": "Delete",
+    "emptyHint": "Double-click to add a sticky note"
+  },
+  "tasks": {
+    "addList": "Add list",
+    "addCard": "Add card",
+    "cardTitle": "Card title",
+    "listTitle": "List title",
+    "labels": "Labels"
+  },
+  "errors": {
+    "validation": "Some fields are invalid.",
+    "notFound": "Not found.",
+    "joinCodeInvalid": "Join code is invalid.",
+    "joinCodeExpired": "Join code has expired.",
+    "sessionNotFound": "Session not found.",
+    "sessionEnded": "The host closed this session.",
+    "readOnly": "You can view only.",
+    "workflowPackInvalid": "This workflow file is invalid.",
+    "rateLimited": "Too many requests. Try again later.",
+    "unexpected": "Something went wrong."
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

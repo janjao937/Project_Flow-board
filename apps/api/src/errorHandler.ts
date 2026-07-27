@@ -1,6 +1,6 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
-import { AppError, ErrorCode, isAppError, toErrorResponse } from "../../../packages/errors/src/index.js";
+import { AppError, ErrorCode, isAppError, toErrorResponse } from "../../../packages/errors/src/index";
 import { ZodError } from "zod";
 
 export function requestIdFromHeaders(request: FastifyRequest): string {

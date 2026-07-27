@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CURRENT_SCHEMA_VERSION, isCurrentSchemaVersion, parseManifest } from "./manifest.js";
-import { migrateManifest } from "./migrate.js";
+import { CURRENT_SCHEMA_VERSION, isCurrentSchemaVersion, parseManifest } from "./manifest";
+import { migrateManifest } from "./migrate";
 
 function buildManifest(overrides: Record<string, unknown> = {}) {
   return {

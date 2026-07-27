@@ -6,6 +6,7 @@ const DEFAULT_TARGETS = [
   "packages/errors",
   "packages/permissions",
   "packages/workflow-schema",
+  "packages/flowpkg",
   "apps/api",
   "apps/web",
 ];

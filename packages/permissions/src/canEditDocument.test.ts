@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canEditDocument, canManageSession, canSaveToFile } from "./canEditDocument.js";
+import { canEditDocument, canManageSession, canSaveToFile } from "./canEditDocument";
 
 describe("canEditDocument", () => {
   it("host can always edit regardless of guestsCanEdit", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { AppError, isAppError } from "./appError.js";
-import { ErrorCode } from "./errorCode.js";
-import { toErrorResponse } from "./errorResponse.js";
+import { AppError, isAppError } from "./appError";
+import { ErrorCode } from "./errorCode";
+import { toErrorResponse } from "./errorResponse";
 
 describe("AppError", () => {
   it("carries http status and message key derived from the code", () => {

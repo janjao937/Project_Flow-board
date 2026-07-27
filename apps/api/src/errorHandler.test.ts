@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AppError, ErrorCode } from "../../../packages/errors/src/index.js";
+import { AppError, ErrorCode } from "../../../packages/errors/src/index";
 import { buildApp } from "./app.js";
 import { loadEnv } from "./env.js";
 

@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans), var(--font-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --font-heading: var(--font-display), var(--font-thai), serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,24 +49,24 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: oklch(0.985 0.005 180);
+  --foreground: oklch(0.22 0.02 200);
+  --card: oklch(0.995 0.004 180);
+  --card-foreground: oklch(0.22 0.02 200);
+  --popover: oklch(0.995 0.004 180);
+  --popover-foreground: oklch(0.22 0.02 200);
+  --primary: oklch(0.42 0.08 185);
+  --primary-foreground: oklch(0.98 0.01 180);
+  --secondary: oklch(0.94 0.01 190);
+  --secondary-foreground: oklch(0.28 0.03 200);
+  --muted: oklch(0.94 0.01 190);
+  --muted-foreground: oklch(0.5 0.02 200);
+  --accent: oklch(0.93 0.02 185);
+  --accent-foreground: oklch(0.28 0.03 200);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.88 0.015 190);
+  --input: oklch(0.88 0.015 190);
+  --ring: oklch(0.55 0.06 185);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -84,24 +84,24 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.17 0.015 200);
+  --foreground: oklch(0.95 0.01 180);
+  --card: oklch(0.21 0.015 200);
+  --card-foreground: oklch(0.95 0.01 180);
+  --popover: oklch(0.21 0.015 200);
+  --popover-foreground: oklch(0.95 0.01 180);
+  --primary: oklch(0.78 0.08 175);
+  --primary-foreground: oklch(0.18 0.02 200);
+  --secondary: oklch(0.26 0.02 200);
+  --secondary-foreground: oklch(0.95 0.01 180);
+  --muted: oklch(0.26 0.02 200);
+  --muted-foreground: oklch(0.72 0.02 190);
+  --accent: oklch(0.28 0.03 185);
+  --accent-foreground: oklch(0.95 0.01 180);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.65 0.06 175);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -109,7 +109,7 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.72 0.08 175);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
@@ -127,4 +127,10 @@
   html {
     @apply font-sans;
   }
+}
+
+.board-surface {
+  background-color: color-mix(in oklab, var(--background) 88%, #0f766e 12%);
+  background-image: radial-gradient(color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
 }

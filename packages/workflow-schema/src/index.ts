@@ -6,6 +6,6 @@ export {
   WorkflowManifestSchema,
   isCurrentSchemaVersion,
   parseManifest,
-} from "./manifest.js";
-export type { PageRef, SessionDefaults, WorkflowManifest } from "./manifest.js";
-export { migrateManifest } from "./migrate.js";
+} from "./manifest";
+export type { PageRef, SessionDefaults, WorkflowManifest } from "./manifest";
+export { migrateManifest } from "./migrate";
