@@ -1,0 +1,27 @@
+{
+  "name": "workflow-design-pwa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "install:all": "node scripts/install-each.mjs",
+    "dev": "concurrently -n web,api -c blue,green \"npm --prefix apps/web run dev\" \"npm --prefix apps/api run dev\"",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:api": "npm --prefix apps/api run dev",
+    "build": "node scripts/run-each.mjs build",
+    "start": "npm --prefix apps/web run start",
+    "lint": "node scripts/run-each.mjs lint",
+    "typecheck": "node scripts/run-each.mjs typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ci": "npm run typecheck && npm run lint && npm run test",
+    "test:e2e": "npm --prefix apps/web run test:e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
+    "vitest": "^2.1.8"
+  }
+}
