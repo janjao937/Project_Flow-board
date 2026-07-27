@@ -27,6 +27,10 @@ describe("workflow-io", () => {
           zIndex: 1,
         },
       ],
+      shapes: [],
+      connectors: [],
+      images: [],
+      gridEnabled: false,
     };
 
     const bytes = packWorkflow(created.manifest, created.data);

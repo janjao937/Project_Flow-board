@@ -37,7 +37,15 @@
     "undo": "Undo",
     "redo": "Redo",
     "delete": "Delete",
-    "emptyHint": "Double-click to add a sticky note"
+    "emptyHint": "Double-click to add a sticky note",
+    "rect": "Rect",
+    "ellipse": "Ellipse",
+    "triangle": "Triangle",
+    "arrow": "Arrow",
+    "connector": "Connect",
+    "image": "Image",
+    "grid": "Grid",
+    "readOnly": "View only — guests cannot edit right now"
   },
   "tasks": {
     "addList": "Add list",
@@ -45,6 +53,28 @@
     "cardTitle": "Card title",
     "listTitle": "List title",
     "labels": "Labels"
+  },
+  "session": {
+    "startSession": "Start session",
+    "sessionStarted": "Live session started",
+    "joinTitle": "Join a session",
+    "joinSub": "Enter the code from the host to collaborate live.",
+    "joinCode": "Join code",
+    "joinAction": "Join",
+    "joined": "Joined session",
+    "displayName": "Display name",
+    "guestsCanEdit": "Guests can edit",
+    "copy": "Copy",
+    "copied": "Copied",
+    "online": "Online",
+    "host": "Host",
+    "guestMode": "Joined as guest",
+    "endSession": "End session for everyone",
+    "hostLeft": "The host left this session.",
+    "hostEnded": "The host ended this session.",
+    "endedTitle": "Session ended",
+    "backHome": "Back home",
+    "joinAgain": "Join again"
   },
   "errors": {
     "validation": "Some fields are invalid.",

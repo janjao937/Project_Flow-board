@@ -134,3 +134,9 @@
   background-image: radial-gradient(color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 1px);
   background-size: 22px 22px;
 }
+.board-grid {
+  background-size: 20px 20px;
+  background-image: linear-gradient(color-mix(in oklab, var(--foreground) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--foreground) 10%, transparent) 1px, transparent 1px);
+}
+

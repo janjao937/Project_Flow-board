@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { AppError, ErrorCode } from "../../../packages/errors/src/index";
-import { buildApp } from "./app.js";
-import { loadEnv } from "./env.js";
+import { buildApp } from "./app";
+import { loadEnv } from "./env";
 
 describe("errorHandler", () => {
   it("serializes AppError with its code, messageKey and http status", async () => {
-    const app = await buildApp(loadEnv({ NODE_ENV: "test" }));
+    const { app, stopWatchdog } = await buildApp(loadEnv({ NODE_ENV: "test" }));
     app.get("/test-app-error", async () => {
       throw AppError.from(ErrorCode.JOIN_CODE_INVALID);
     });
@@ -18,11 +18,12 @@ describe("errorHandler", () => {
         messageKey: "errors.joinCodeInvalid",
       },
     });
+    stopWatchdog();
     await app.close();
   });
 
   it("maps unknown errors to INTERNAL without leaking the message", async () => {
-    const app = await buildApp(loadEnv({ NODE_ENV: "test" }));
+    const { app, stopWatchdog } = await buildApp(loadEnv({ NODE_ENV: "test" }));
     app.get("/test-unknown-error", async () => {
       throw new Error("secret internal detail");
     });
@@ -32,6 +33,7 @@ describe("errorHandler", () => {
     const body = response.json();
     expect(body.error.code).toBe("INTERNAL");
     expect(JSON.stringify(body)).not.toContain("secret internal detail");
+    stopWatchdog();
     await app.close();
   });
 });

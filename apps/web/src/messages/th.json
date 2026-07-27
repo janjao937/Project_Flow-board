@@ -37,7 +37,15 @@
     "undo": "เลิกทำ",
     "redo": "ทำซ้ำ",
     "delete": "ลบ",
-    "emptyHint": "ดับเบิลคลิกเพื่อเพิ่มโน้ต"
+    "emptyHint": "ดับเบิลคลิกเพื่อเพิ่มโน้ต",
+    "rect": "สี่เหลี่ยม",
+    "ellipse": "วงกลม",
+    "triangle": "สามเหลี่ยม",
+    "arrow": "ลูกศร",
+    "connector": "เชื่อม",
+    "image": "รูป",
+    "grid": "กริด",
+    "readOnly": "ดูอย่างเดียว — ตอนนี้ guest แก้ไม่ได้"
   },
   "tasks": {
     "addList": "เพิ่มรายการ",
@@ -45,6 +53,28 @@
     "cardTitle": "ชื่อการ์ด",
     "listTitle": "ชื่อรายการ",
     "labels": "ป้าย"
+  },
+  "session": {
+    "startSession": "เริ่มเซสชัน",
+    "sessionStarted": "เริ่มเซสชันแล้ว",
+    "joinTitle": "เข้าร่วมเซสชัน",
+    "joinSub": "กรอกรหัสจาก host เพื่อร่วมงานแบบสด",
+    "joinCode": "รหัสเข้าร่วม",
+    "joinAction": "เข้าร่วม",
+    "joined": "เข้าร่วมแล้ว",
+    "displayName": "ชื่อที่แสดง",
+    "guestsCanEdit": "อนุญาตให้ guest แก้ไข",
+    "copy": "คัดลอก",
+    "copied": "คัดลอกแล้ว",
+    "online": "ออนไลน์",
+    "host": "Host",
+    "guestMode": "เข้าร่วมแบบ guest",
+    "endSession": "จบเซสชันสำหรับทุกคน",
+    "hostLeft": "เจ้าของออกจากเซสชันแล้ว",
+    "hostEnded": "เจ้าของจบเซสชันแล้ว",
+    "endedTitle": "เซสชันสิ้นสุดแล้ว",
+    "backHome": "กลับหน้าแรก",
+    "joinAgain": "เข้าร่วมใหม่"
   },
   "errors": {
     "validation": "ข้อมูลบางช่องไม่ถูกต้อง",

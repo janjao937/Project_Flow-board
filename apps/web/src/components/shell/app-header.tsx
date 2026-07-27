@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Link, useRouter } from "@/i18n/navigation";
 import { LocaleSwitcher, ThemeSwitcher } from "@/components/shell/preference-switchers";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
+import { useSessionStore } from "@/features/join/store/session-store";
 import { FlowPackError } from "@/shared/packages/flowpkg";
 import { showErrorToast } from "@/shared/api-client/show-error-toast";
 
@@ -25,6 +26,8 @@ export function AppHeader() {
   const save = useWorkflowStore((s) => s.save);
   const saveAs = useWorkflowStore((s) => s.saveAs);
   const fileHandle = useWorkflowStore((s) => s.fileHandle);
+  const role = useSessionStore((s) => s.role);
+  const canSave = !role || role === "host";
 
   useEffect(() => {
     if (!manifest || !dirty || !fileHandle) {
@@ -67,6 +70,9 @@ export function AppHeader() {
           >
             {t("new")}
           </Button>
+          <Button size="sm" variant="ghost" onClick={() => router.push("/join")}>
+            {t("join")}
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -91,7 +97,7 @@ export function AppHeader() {
           <Button
             size="sm"
             variant="ghost"
-            disabled={!manifest}
+            disabled={!manifest || !canSave}
             onClick={() => {
               void save()
                 .then(() => toast.success(tw("saved")))
@@ -103,7 +109,7 @@ export function AppHeader() {
           <Button
             size="sm"
             variant="ghost"
-            disabled={!manifest}
+            disabled={!manifest || !canSave}
             onClick={() => {
               void saveAs()
                 .then(() => toast.success(tw("saved")))

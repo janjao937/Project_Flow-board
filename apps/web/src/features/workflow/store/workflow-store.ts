@@ -12,6 +12,7 @@ import {
   type FlowFileHandle,
 } from "../infrastructure/file-system";
 import { rememberRecent } from "../infrastructure/recent";
+import { useSessionStore } from "@/features/join/store/session-store";
 
 interface HistoryEntry {
   data: WorkflowDocumentData;
@@ -33,6 +34,7 @@ interface WorkflowStore {
   setActivePage: (pageId: string) => void;
   updateBoard: (pageId: string, updater: (board: BoardState) => BoardState) => void;
   updateTasks: (pageId: string, updater: (tasks: TasksState) => TasksState) => void;
+  applyRemote: (manifest: WorkflowManifest, data: WorkflowDocumentData) => void;
   undo: () => void;
   redo: () => void;
   getActiveBoard: () => BoardState | null;
@@ -51,6 +53,22 @@ function pushHistory(state: WorkflowStore): Pick<WorkflowStore, "past" | "future
     past: [...state.past, { data: cloneData(state.data) }].slice(-50),
     future: [],
   };
+}
+
+function assertCanEdit(): boolean {
+  const session = useSessionStore.getState();
+  if (!session.sessionId) {
+    return true;
+  }
+  return session.canEdit;
+}
+
+function assertCanSave(): boolean {
+  const session = useSessionStore.getState();
+  if (!session.sessionId) {
+    return true;
+  }
+  return session.role === "host";
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
@@ -95,7 +113,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   save: async () => {
     const state = get();
-    if (!state.manifest || !state.data) {
+    if (!state.manifest || !state.data || !assertCanSave()) {
       return;
     }
     const bytes = packWorkflow(state.manifest, state.data);
@@ -120,7 +138,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   saveAs: async () => {
     const state = get();
-    if (!state.manifest || !state.data) {
+    if (!state.manifest || !state.data || !assertCanSave()) {
       return;
     }
     const bytes = packWorkflow(state.manifest, state.data);
@@ -145,11 +163,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   updateBoard: (pageId, updater) => {
     const state = get();
-    if (!state.data) {
+    if (!state.data || !assertCanEdit()) {
       return;
     }
     const history = pushHistory(state);
-    const current = state.data.boards[pageId] ?? { stickies: [] as StickyNote[] };
+    const current = state.data.boards[pageId] ?? { stickies: [] as StickyNote[], shapes: [], connectors: [], images: [], gridEnabled: false };
     set({
       ...history,
       dirty: true,
@@ -165,7 +183,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   updateTasks: (pageId, updater) => {
     const state = get();
-    if (!state.data) {
+    if (!state.data || !assertCanEdit()) {
       return;
     }
     const history = pushHistory(state);
@@ -183,7 +201,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     });
   },
 
+  applyRemote: (manifest, data) => {
+    const state = get();
+    set({
+      manifest,
+      data,
+      activePageId: state.activePageId ?? manifest.pages[0]?.id ?? null,
+      dirty: false,
+      past: [],
+      future: [],
+    });
+  },
+
   undo: () => {
+    if (!assertCanEdit()) {
+      return;
+    }
     const state = get();
     if (!state.data || state.past.length === 0) {
       return;
@@ -201,6 +234,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
 
   redo: () => {
+    if (!assertCanEdit()) {
+      return;
+    }
     const state = get();
     if (!state.data || state.future.length === 0) {
       return;

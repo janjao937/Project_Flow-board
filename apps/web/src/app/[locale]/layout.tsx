@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AppProviders } from "@/components/providers/app-providers";
 import { AppErrorBoundary } from "@/components/providers/error-boundary";
 import { AppHeader } from "@/components/shell/app-header";
+import { SessionRealtimeBridge } from "@/features/join/ui/session-realtime-bridge";
 import { routing } from "@/i18n/routing";
 
 export function generateStaticParams() {
@@ -32,6 +33,7 @@ export default async function LocaleLayout({
           <div lang={locale} className="flex min-h-full flex-1 flex-col">
             <AppHeader />
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+            <SessionRealtimeBridge />
           </div>
         </AppErrorBoundary>
       </AppProviders>
