@@ -139,7 +139,15 @@ export function AppHeader() {
                   router.push("/workspace");
                 }}
               >
-                {page.kind === "board" ? t("board") : page.kind === "tasks" ? t("tasks") : page.title}
+                {page.kind === "board"
+                  ? t("board")
+                  : page.kind === "tasks"
+                    ? t("tasks")
+                    : page.kind === "roadmap"
+                      ? t("roadmap")
+                      : page.kind === "plan"
+                        ? t("plan")
+                        : page.title}
               </Button>
             ))}
           </div>

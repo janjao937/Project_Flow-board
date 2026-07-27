@@ -11,6 +11,8 @@
     "new": "New workflow",
     "board": "Board",
     "tasks": "Tasks",
+    "roadmap": "Roadmap",
+    "plan": "Plan",
     "join": "Join",
     "theme": "Theme",
     "language": "Language"
@@ -45,6 +47,16 @@
     "connector": "Connect",
     "image": "Image",
     "grid": "Grid",
+    "frame": "Frame",
+    "freehand": "Draw",
+    "minimap": "Minimap",
+    "alignLeft": "Align left",
+    "alignTop": "Align top",
+    "distributeH": "Distribute",
+    "group": "Group",
+    "ungroup": "Ungroup",
+    "exportPng": "PNG",
+    "exportPdf": "PDF",
     "readOnly": "View only — guests cannot edit right now"
   },
   "tasks": {
@@ -53,6 +65,31 @@
     "cardTitle": "Card title",
     "listTitle": "List title",
     "labels": "Labels"
+  },
+  "roadmap": {
+    "title": "Roadmap",
+    "subtitle": "Milestones on a timeline, with dependencies and task links.",
+    "addMilestone": "Add milestone",
+    "milestone": "Milestone",
+    "date": "Date",
+    "dependsOn": "Depends on",
+    "linkedCards": "Linked task",
+    "none": "None",
+    "noCards": "No task cards yet"
+  },
+  "plan": {
+    "title": "Plan",
+    "subtitle": "Time boxes with capacity and links to task cards.",
+    "addBox": "Add time box",
+    "box": "Sprint",
+    "start": "Start",
+    "end": "End",
+    "capacity": "Capacity (hours)",
+    "capacityTotal": "Total capacity",
+    "linkedCards": "Linked task",
+    "none": "None",
+    "noCards": "No task cards yet",
+    "remove": "Remove"
   },
   "session": {
     "startSession": "Start session",

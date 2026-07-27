@@ -1,5 +1,6 @@
 import { strFromU8, unzipSync } from "fflate";
-import { ASSETS_DIR, DOCUMENT_PATH, MANIFEST_PATH } from "./constants";
+import { computePackageChecksum } from "./checksum";
+import { ASSETS_DIR, CHECKSUM_PATH, DOCUMENT_PATH, MANIFEST_PATH, PREVIEW_PATH } from "./constants";
 import type { FlowPackage, PackedAsset } from "./types";
 import { WorkflowManifestSchema } from "./types";
 
@@ -12,7 +13,7 @@ export class FlowPackError extends Error {
   }
 }
 
-export function unpackFlowPackage(bytes: Uint8Array): FlowPackage {
+export async function unpackFlowPackage(bytes: Uint8Array): Promise<FlowPackage> {
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(bytes);
@@ -42,12 +43,21 @@ export function unpackFlowPackage(bytes: Uint8Array): FlowPackage {
     throw new FlowPackError("missing_document");
   }
 
+  const checksumFile = files[CHECKSUM_PATH];
+  if (checksumFile) {
+    const expected = strFromU8(checksumFile).trim();
+    const actual = await computePackageChecksum([manifestBytes, document]);
+    if (expected !== actual) {
+      throw new FlowPackError("checksum_mismatch");
+    }
+  }
+
   const assets: PackedAsset[] = [];
   for (const [path, data] of Object.entries(files)) {
-    if (path === MANIFEST_PATH || path === DOCUMENT_PATH) {
+    if (path === MANIFEST_PATH || path === DOCUMENT_PATH || path === CHECKSUM_PATH) {
       continue;
     }
-    if (path.startsWith(ASSETS_DIR) && !path.endsWith("/")) {
+    if (path === PREVIEW_PATH || (path.startsWith(ASSETS_DIR) && !path.endsWith("/"))) {
       assets.push({ path, data: new Uint8Array(data) });
     }
   }

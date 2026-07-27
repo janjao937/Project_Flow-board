@@ -1,10 +1,12 @@
 import { strToU8, zipSync } from "fflate";
-import { ASSETS_DIR, DOCUMENT_PATH, MANIFEST_PATH } from "./constants";
+import { computePackageChecksum } from "./checksum";
+import { ASSETS_DIR, CHECKSUM_PATH, DOCUMENT_PATH, MANIFEST_PATH, PREVIEW_PATH } from "./constants";
 import type { FlowPackage } from "./types";
 
-export function packFlowPackage(pkg: FlowPackage): Uint8Array {
+export async function packFlowPackage(pkg: FlowPackage): Promise<Uint8Array> {
+  const manifestBytes = strToU8(JSON.stringify(pkg.manifest, null, 2));
   const files: Record<string, Uint8Array> = {
-    [MANIFEST_PATH]: strToU8(JSON.stringify(pkg.manifest, null, 2)),
+    [MANIFEST_PATH]: manifestBytes,
     [DOCUMENT_PATH]: pkg.document,
   };
 
@@ -13,7 +15,13 @@ export function packFlowPackage(pkg: FlowPackage): Uint8Array {
       ? asset.path
       : `${ASSETS_DIR}${asset.path}`;
     files[path] = asset.data;
+    if (path === PREVIEW_PATH || path.endsWith(`/${PREVIEW_PATH}`)) {
+      files[PREVIEW_PATH] = asset.data;
+    }
   }
+
+  const checksum = await computePackageChecksum([manifestBytes, pkg.document]);
+  files[CHECKSUM_PATH] = strToU8(checksum);
 
   return zipSync(files, { level: 6 });
 }

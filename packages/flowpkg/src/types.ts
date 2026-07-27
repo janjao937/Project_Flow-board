@@ -31,6 +31,8 @@ export function createEmptyManifest(name: string): WorkflowManifest {
   const now = new Date().toISOString();
   const boardId = newId();
   const tasksId = newId();
+  const roadmapId = newId();
+  const planId = newId();
   return WorkflowManifestSchema.parse({
     schemaVersion: CURRENT_SCHEMA_VERSION,
     id: newId(),
@@ -38,6 +40,8 @@ export function createEmptyManifest(name: string): WorkflowManifest {
     pages: [
       { id: boardId, kind: "board", title: "Board", sortOrder: 0 },
       { id: tasksId, kind: "tasks", title: "Tasks", sortOrder: 1 },
+      { id: roadmapId, kind: "roadmap", title: "Roadmap", sortOrder: 2 },
+      { id: planId, kind: "plan", title: "Plan", sortOrder: 3 },
     ],
     sessionDefaults: { guestsCanEdit: false },
     createdAt: now,

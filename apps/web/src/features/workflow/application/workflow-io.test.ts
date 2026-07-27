@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 import { createNewWorkflow, packWorkflow, unpackWorkflow } from "./workflow-io";
 
 describe("workflow-io", () => {
-  it("creates a workflow with board and tasks pages", () => {
+  it("creates a workflow with board, tasks, roadmap, and plan pages", () => {
     const created = createNewWorkflow("Sprint");
     expect(created.manifest.name).toBe("Sprint");
-    expect(created.manifest.pages.map((page) => page.kind).sort()).toEqual(["board", "tasks"]);
+    expect(created.manifest.pages.map((page) => page.kind).sort()).toEqual([
+      "board",
+      "plan",
+      "roadmap",
+      "tasks",
+    ]);
   });
 
-  it("round-trips through pack and unpack", () => {
+  it("round-trips through pack and unpack", async () => {
     const created = createNewWorkflow("Roundtrip");
     const boardId = created.manifest.pages.find((page) => page.kind === "board")?.id;
     if (!boardId) {
@@ -30,12 +35,17 @@ describe("workflow-io", () => {
       shapes: [],
       connectors: [],
       images: [],
+      frames: [],
+      strokes: [],
+      groups: [],
       gridEnabled: false,
     };
 
-    const bytes = packWorkflow(created.manifest, created.data);
-    const opened = unpackWorkflow(bytes);
+    const bytes = await packWorkflow(created.manifest, created.data);
+    const opened = await unpackWorkflow(bytes);
     expect(opened.manifest.name).toBe("Roundtrip");
     expect(opened.data.boards[boardId]?.stickies[0]?.text).toBe("Hello");
+    expect(Object.keys(opened.data.roadmaps).length).toBeGreaterThan(0);
+    expect(Object.keys(opened.data.plans).length).toBeGreaterThan(0);
   });
 });

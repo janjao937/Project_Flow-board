@@ -39,6 +39,7 @@ for (const dir of targets) {
 
   if (result.status !== 0) {
     hadFailure = true;
+    break;
   }
 }
 

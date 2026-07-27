@@ -11,6 +11,8 @@
     "new": "สร้าง workflow",
     "board": "บอร์ด",
     "tasks": "งาน",
+    "roadmap": "โรดแมป",
+    "plan": "แผน",
     "join": "เข้าร่วม",
     "theme": "ธีม",
     "language": "ภาษา"
@@ -45,6 +47,16 @@
     "connector": "เชื่อม",
     "image": "รูป",
     "grid": "กริด",
+    "frame": "เฟรม",
+    "freehand": "วาด",
+    "minimap": "มินิแมป",
+    "alignLeft": "ชิดซ้าย",
+    "alignTop": "ชิดบน",
+    "distributeH": "กระจาย",
+    "group": "จัดกลุ่ม",
+    "ungroup": "ยกเลิกกลุ่ม",
+    "exportPng": "PNG",
+    "exportPdf": "PDF",
     "readOnly": "ดูอย่างเดียว — ตอนนี้ guest แก้ไม่ได้"
   },
   "tasks": {
@@ -53,6 +65,31 @@
     "cardTitle": "ชื่อการ์ด",
     "listTitle": "ชื่อรายการ",
     "labels": "ป้าย"
+  },
+  "roadmap": {
+    "title": "โรดแมป",
+    "subtitle": "จุดหมายบนเส้นเวลา พร้อม dependency และลิงก์งาน",
+    "addMilestone": "เพิ่ม milestone",
+    "milestone": "Milestone",
+    "date": "วันที่",
+    "dependsOn": "ขึ้นกับ",
+    "linkedCards": "ลิงก์งาน",
+    "none": "ไม่มี",
+    "noCards": "ยังไม่มีการ์ดงาน"
+  },
+  "plan": {
+    "title": "แผน",
+    "subtitle": "กล่องเวลา พร้อมความจุและลิงก์การ์ดงาน",
+    "addBox": "เพิ่มกล่องเวลา",
+    "box": "สปรินต์",
+    "start": "เริ่ม",
+    "end": "จบ",
+    "capacity": "ความจุ (ชั่วโมง)",
+    "capacityTotal": "ความจุรวม",
+    "linkedCards": "ลิงก์งาน",
+    "none": "ไม่มี",
+    "noCards": "ยังไม่มีการ์ดงาน",
+    "remove": "ลบ"
   },
   "session": {
     "startSession": "เริ่มเซสชัน",

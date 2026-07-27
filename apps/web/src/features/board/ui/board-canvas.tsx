@@ -1,21 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   STICKY_COLORS,
-  createEmptyBoard,
   snapToGrid,
+  type BoardFrame,
   type BoardShape,
+  type FreehandStroke,
   type ShapeKind,
   type StickyNote,
 } from "@/features/workflow/domain/document-data";
 import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
+import { alignItems, distributeItems, type AlignMode } from "../lib/align";
+import { exportBoardPdf, exportBoardPng } from "../lib/export-board";
+import { normalizeBoard } from "../lib/normalize-board";
 import { StickyNoteView } from "./sticky-note-view";
 
-type Tool = "select" | "pan" | "sticky" | ShapeKind | "image" | "connector";
+type Tool = "select" | "pan" | "sticky" | ShapeKind | "image" | "connector" | "frame" | "freehand";
 
 const COLOR_CLASS: Record<string, string> = {
   butter: "bg-[#f3e2a4]",
@@ -27,7 +32,7 @@ const COLOR_CLASS: Record<string, string> = {
 
 export function BoardCanvas({ pageId }: { pageId: string }) {
   const t = useTranslations("board");
-  const board = useWorkflowStore((s) => s.data?.boards[pageId] ?? createEmptyBoard());
+  const board = useWorkflowStore((s) => normalizeBoard(s.data?.boards[pageId]));
   const updateBoard = useWorkflowStore((s) => s.updateBoard);
   const undo = useWorkflowStore((s) => s.undo);
   const redo = useWorkflowStore((s) => s.redo);
@@ -39,20 +44,24 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const [connectorFrom, setConnectorFrom] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<{ stickies: StickyNote[]; shapes: BoardShape[] } | null>(null);
+  const [draftStroke, setDraftStroke] = useState<FreehandStroke | null>(null);
+  const [showMinimap, setShowMinimap] = useState(true);
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  const normalizeBoard = useCallback(
-    (current: typeof board) => ({
-      stickies: current.stickies ?? [],
-      shapes: current.shapes ?? [],
-      connectors: current.connectors ?? [],
-      images: current.images ?? [],
-      gridEnabled: current.gridEnabled ?? false,
-    }),
-    [],
-  );
+  const contentBounds = useMemo(() => {
+    const boxes = [...board.stickies, ...board.shapes, ...board.images, ...board.frames];
+    if (boxes.length === 0) {
+      return { minX: -200, minY: -200, maxX: 800, maxY: 600 };
+    }
+    return {
+      minX: Math.min(...boxes.map((box) => box.x)) - 80,
+      minY: Math.min(...boxes.map((box) => box.y)) - 80,
+      maxX: Math.max(...boxes.map((box) => box.x + box.width)) + 80,
+      maxY: Math.max(...boxes.map((box) => box.y + box.height)) + 80,
+    };
+  }, [board.frames, board.images, board.shapes, board.stickies]);
 
   const screenToWorld = (clientX: number, clientY: number) => {
     const rect = viewportRef.current?.getBoundingClientRect();
@@ -64,6 +73,9 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       y: (clientY - rect.top - camera.y) / camera.zoom,
     };
   };
+
+  const nextZ = () =>
+    board.stickies.length + board.shapes.length + board.images.length + board.frames.length + board.strokes.length + 1;
 
   const addSticky = useCallback(
     (x: number, y: number) => {
@@ -78,7 +90,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         height: 160,
         text: "",
         color: STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)] ?? "butter",
-        zIndex: board.stickies.length + board.shapes.length + 1,
+        zIndex: nextZ(),
       };
       updateBoard(pageId, (current) => {
         const next = normalizeBoard(current);
@@ -86,7 +98,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       });
       setSelectedIds([sticky.id]);
     },
-    [board.gridEnabled, board.shapes.length, board.stickies.length, canEdit, normalizeBoard, pageId, updateBoard],
+    [board.gridEnabled, canEdit, pageId, updateBoard],
   );
 
   const addShape = useCallback(
@@ -103,7 +115,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         height: 100,
         stroke: "#0f766e",
         fill: "rgba(15,118,110,0.12)",
-        zIndex: board.stickies.length + board.shapes.length + 1,
+        zIndex: nextZ(),
       };
       updateBoard(pageId, (current) => {
         const next = normalizeBoard(current);
@@ -112,8 +124,157 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       setSelectedIds([shape.id]);
       setTool("select");
     },
-    [board.gridEnabled, board.shapes.length, board.stickies.length, canEdit, normalizeBoard, pageId, updateBoard],
+    [board.gridEnabled, canEdit, pageId, updateBoard],
   );
+
+  const addFrame = useCallback(
+    (x: number, y: number) => {
+      if (!canEdit) {
+        return;
+      }
+      const frame: BoardFrame = {
+        id: crypto.randomUUID(),
+        x: snapToGrid(x, board.gridEnabled),
+        y: snapToGrid(y, board.gridEnabled),
+        width: 420,
+        height: 280,
+        title: t("frame"),
+        zIndex: 0,
+      };
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return { ...next, frames: [...next.frames, frame] };
+      });
+      setSelectedIds([frame.id]);
+      setTool("select");
+    },
+    [board.gridEnabled, canEdit, pageId, t, updateBoard],
+  );
+
+  const applyAlign = (mode: AlignMode) => {
+    if (!canEdit || selectedIds.length < 2) {
+      return;
+    }
+    updateBoard(pageId, (current) => {
+      const next = normalizeBoard(current);
+      const selected = [
+        ...next.stickies.filter((item) => selectedIds.includes(item.id)),
+        ...next.shapes.filter((item) => selectedIds.includes(item.id)),
+        ...next.images.filter((item) => selectedIds.includes(item.id)),
+        ...next.frames.filter((item) => selectedIds.includes(item.id)),
+      ];
+      const aligned = alignItems(selected, mode);
+      const byId = new Map(aligned.map((item) => [item.id, item]));
+      return {
+        ...next,
+        stickies: next.stickies.map((item) => {
+          const hit = byId.get(item.id);
+          return hit ? { ...item, x: hit.x, y: hit.y } : item;
+        }),
+        shapes: next.shapes.map((item) => {
+          const hit = byId.get(item.id);
+          return hit ? { ...item, x: hit.x, y: hit.y } : item;
+        }),
+        images: next.images.map((item) => {
+          const hit = byId.get(item.id);
+          return hit ? { ...item, x: hit.x, y: hit.y } : item;
+        }),
+        frames: next.frames.map((item) => {
+          const hit = byId.get(item.id);
+          return hit ? { ...item, x: hit.x, y: hit.y } : item;
+        }),
+      };
+    });
+  };
+
+  const applyDistribute = (mode: "horizontal" | "vertical") => {
+    if (!canEdit || selectedIds.length < 3) {
+      return;
+    }
+    updateBoard(pageId, (current) => {
+      const next = normalizeBoard(current);
+      const selected = [
+        ...next.stickies.filter((item) => selectedIds.includes(item.id)),
+        ...next.shapes.filter((item) => selectedIds.includes(item.id)),
+        ...next.images.filter((item) => selectedIds.includes(item.id)),
+      ];
+      const distributed = distributeItems(selected, mode);
+      const byId = new Map(distributed.map((item) => [item.id, item]));
+      return {
+        ...next,
+        stickies: next.stickies.map((item) => {
+          const hit = byId.get(item.id);
+          return hit ? { ...item, x: hit.x, y: hit.y } : item;
+        }),
+        shapes: next.shapes.map((item) => {
+          const hit = byId.get(item.id);
+          return hit ? { ...item, x: hit.x, y: hit.y } : item;
+        }),
+        images: next.images.map((item) => {
+          const hit = byId.get(item.id);
+          return hit ? { ...item, x: hit.x, y: hit.y } : item;
+        }),
+      };
+    });
+  };
+
+  const groupSelected = () => {
+    if (!canEdit || selectedIds.length < 2) {
+      return;
+    }
+    const groupId = crypto.randomUUID();
+    updateBoard(pageId, (current) => {
+      const next = normalizeBoard(current);
+      return {
+        ...next,
+        groups: [...next.groups, { id: groupId, memberIds: selectedIds }],
+        stickies: next.stickies.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+        ),
+        shapes: next.shapes.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+        ),
+        images: next.images.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+        ),
+        strokes: next.strokes.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+        ),
+      };
+    });
+  };
+
+  const ungroupSelected = () => {
+    if (!canEdit || selectedIds.length === 0) {
+      return;
+    }
+    updateBoard(pageId, (current) => {
+      const next = normalizeBoard(current);
+      const groupIds = new Set(
+        [
+          ...next.stickies.filter((item) => selectedIds.includes(item.id)).map((item) => item.groupId),
+          ...next.shapes.filter((item) => selectedIds.includes(item.id)).map((item) => item.groupId),
+          ...next.images.filter((item) => selectedIds.includes(item.id)).map((item) => item.groupId),
+        ].filter(Boolean),
+      );
+      return {
+        ...next,
+        groups: next.groups.filter((group) => !groupIds.has(group.id)),
+        stickies: next.stickies.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+        ),
+        shapes: next.shapes.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+        ),
+        images: next.images.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+        ),
+        strokes: next.strokes.map((item) =>
+          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+        ),
+      };
+    });
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -160,6 +321,14 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         });
         setSelectedIds([...mapped.values()]);
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          ungroupSelected();
+        } else {
+          groupSelected();
+        }
+      }
       if (event.key === "Delete" || event.key === "Backspace") {
         const target = event.target as HTMLElement | null;
         if (target && (target.tagName === "TEXTAREA" || target.tagName === "INPUT")) {
@@ -172,9 +341,17 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             stickies: next.stickies.filter((item) => !selectedIds.includes(item.id)),
             shapes: next.shapes.filter((item) => !selectedIds.includes(item.id)),
             images: next.images.filter((item) => !selectedIds.includes(item.id)),
+            frames: next.frames.filter((item) => !selectedIds.includes(item.id)),
+            strokes: next.strokes.filter((item) => !selectedIds.includes(item.id)),
             connectors: next.connectors.filter(
               (item) => !selectedIds.includes(item.fromId) && !selectedIds.includes(item.toId),
             ),
+            groups: next.groups
+              .map((group) => ({
+                ...group,
+                memberIds: group.memberIds.filter((id) => !selectedIds.includes(id)),
+              }))
+              .filter((group) => group.memberIds.length > 1),
           };
         });
         setSelectedIds([]);
@@ -182,7 +359,16 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [board.shapes, board.stickies, canEdit, clipboard, normalizeBoard, pageId, redo, selectedIds, undo, updateBoard]);
+  }, [board.shapes, board.stickies, canEdit, clipboard, pageId, redo, selectedIds, undo, updateBoard]);
+
+  const minimapScale = 0.08;
+  const worldW = contentBounds.maxX - contentBounds.minX;
+  const worldH = contentBounds.maxY - contentBounds.minY;
+  const viewport = viewportRef.current?.getBoundingClientRect();
+  const viewW = (viewport?.width ?? 800) / camera.zoom;
+  const viewH = (viewport?.height ?? 600) / camera.zoom;
+  const viewX = -camera.x / camera.zoom;
+  const viewY = -camera.y / camera.zoom;
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
@@ -198,6 +384,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             ["arrow", t("arrow")],
             ["connector", t("connector")],
             ["image", t("image")],
+            ["frame", t("frame")],
+            ["freehand", t("freehand")],
           ] as const
         ).map(([id, label]) => (
           <Button
@@ -222,6 +410,35 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           }
         >
           {t("grid")}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={!canEdit || selectedIds.length < 2} onClick={() => applyAlign("left")}>
+          {t("alignLeft")}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={!canEdit || selectedIds.length < 2} onClick={() => applyAlign("top")}>
+          {t("alignTop")}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!canEdit || selectedIds.length < 3}
+          onClick={() => applyDistribute("horizontal")}
+        >
+          {t("distributeH")}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={!canEdit || selectedIds.length < 2} onClick={groupSelected}>
+          {t("group")}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={!canEdit || selectedIds.length < 1} onClick={ungroupSelected}>
+          {t("ungroup")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setShowMinimap((value) => !value)}>
+          {t("minimap")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => void exportBoardPng(board)}>
+          {t("exportPng")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => void exportBoardPdf(board)}>
+          {t("exportPdf")}
         </Button>
         <div className="ml-auto flex gap-1">
           <Button size="sm" variant="ghost" disabled={!canEdit} onClick={undo}>
@@ -254,18 +471,45 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           if (tool === "pan" || event.button === 1) {
             panRef.current = { px: event.clientX, py: event.clientY, cx: camera.x, cy: camera.y };
             (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+            return;
+          }
+          if (tool === "freehand" && canEdit && event.button === 0) {
+            const world = screenToWorld(event.clientX, event.clientY);
+            setDraftStroke({
+              id: crypto.randomUUID(),
+              points: [{ x: world.x, y: world.y }],
+              color: "#0f766e",
+              width: 3,
+              zIndex: nextZ(),
+            });
+            (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
           }
         }}
         onPointerMove={(event) => {
-          if (!panRef.current) {
+          if (panRef.current) {
+            const dx = event.clientX - panRef.current.px;
+            const dy = event.clientY - panRef.current.py;
+            setCamera({ x: panRef.current.cx + dx, y: panRef.current.cy + dy, zoom: camera.zoom });
             return;
           }
-          const dx = event.clientX - panRef.current.px;
-          const dy = event.clientY - panRef.current.py;
-          setCamera({ x: panRef.current.cx + dx, y: panRef.current.cy + dy, zoom: camera.zoom });
+          if (draftStroke) {
+            const world = screenToWorld(event.clientX, event.clientY);
+            setDraftStroke({
+              ...draftStroke,
+              points: [...draftStroke.points, { x: world.x, y: world.y }],
+            });
+          }
         }}
         onPointerUp={() => {
           panRef.current = null;
+          if (draftStroke && draftStroke.points.length > 1) {
+            updateBoard(pageId, (current) => {
+              const next = normalizeBoard(current);
+              return { ...next, strokes: [...next.strokes, draftStroke] };
+            });
+            setSelectedIds([draftStroke.id]);
+          }
+          setDraftStroke(null);
         }}
         onDoubleClick={(event) => {
           if (!canEdit || tool !== "select") {
@@ -275,13 +519,17 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           addSticky(world.x - 90, world.y - 80);
         }}
         onClick={(event) => {
-          if (event.target !== event.currentTarget) {
+          if (event.target !== event.currentTarget || tool === "freehand") {
             return;
           }
           const world = screenToWorld(event.clientX, event.clientY);
           if (tool === "sticky") {
             addSticky(world.x - 90, world.y - 80);
             setTool("select");
+            return;
+          }
+          if (tool === "frame") {
+            addFrame(world.x - 210, world.y - 140);
             return;
           }
           if (tool === "rect" || tool === "ellipse" || tool === "triangle" || tool === "arrow") {
@@ -360,6 +608,40 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           className="absolute left-0 top-0 origin-top-left will-change-transform"
           style={{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})` }}
         >
+          {board.frames.map((frame) => (
+            <div
+              key={frame.id}
+              className={`absolute border-2 border-dashed border-teal-700/70 bg-teal-700/5 ${selectedIds.includes(frame.id) ? "ring-2 ring-teal-700" : ""}`}
+              style={{
+                left: frame.x,
+                top: frame.y,
+                width: frame.width,
+                height: frame.height,
+                zIndex: frame.zIndex,
+              }}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                setSelectedIds(event.shiftKey ? [...selectedIds, frame.id] : [frame.id]);
+              }}
+            >
+              <Input
+                value={frame.title}
+                disabled={!canEdit}
+                className="h-8 border-0 bg-transparent text-sm font-medium shadow-none focus-visible:ring-0"
+                onChange={(event) => {
+                  const title = event.target.value;
+                  updateBoard(pageId, (current) => {
+                    const next = normalizeBoard(current);
+                    return {
+                      ...next,
+                      frames: next.frames.map((item) => (item.id === frame.id ? { ...item, title } : item)),
+                    };
+                  });
+                }}
+              />
+            </div>
+          ))}
+
           <svg className="pointer-events-none absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1 }}>
             {board.connectors.map((connector) => {
               const from =
@@ -388,6 +670,23 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 />
               );
             })}
+            {[...board.strokes, ...(draftStroke ? [draftStroke] : [])].map((stroke) => (
+              <polyline
+                key={stroke.id}
+                fill="none"
+                stroke={stroke.color}
+                strokeWidth={stroke.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={stroke.points.map((point) => `${point.x},${point.y}`).join(" ")}
+                className={selectedIds.includes(stroke.id) ? "opacity-90" : undefined}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  setSelectedIds([stroke.id]);
+                }}
+                style={{ pointerEvents: "stroke" }}
+              />
+            ))}
             <defs>
               <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
                 <polygon points="0 0, 6 3, 0 6" fill="#0f766e" />
@@ -405,7 +704,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 width: shape.width,
                 height: shape.height,
                 borderColor: shape.stroke,
-                background: shape.kind === "ellipse" ? shape.fill : shape.fill,
+                background: shape.fill,
                 borderRadius: shape.kind === "ellipse" ? "9999px" : shape.kind === "triangle" ? 0 : 8,
                 clipPath: shape.kind === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" : undefined,
                 zIndex: shape.zIndex,
@@ -538,10 +837,53 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               </div>
             ))}
         </div>
-        {board.stickies.length === 0 && board.shapes.length === 0 ? (
+        {board.stickies.length === 0 && board.shapes.length === 0 && board.frames.length === 0 ? (
           <p className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center text-sm">
             {t("emptyHint")}
           </p>
+        ) : null}
+
+        {showMinimap ? (
+          <div className="border-border/70 bg-background/90 absolute bottom-3 right-3 z-20 overflow-hidden rounded-md border p-1 shadow-sm">
+            <div
+              className="relative bg-[#e8efed]"
+              style={{ width: Math.max(120, worldW * minimapScale), height: Math.max(80, worldH * minimapScale) }}
+            >
+              {board.stickies.map((sticky) => (
+                <div
+                  key={sticky.id}
+                  className="absolute bg-[#f3e2a4]"
+                  style={{
+                    left: (sticky.x - contentBounds.minX) * minimapScale,
+                    top: (sticky.y - contentBounds.minY) * minimapScale,
+                    width: Math.max(2, sticky.width * minimapScale),
+                    height: Math.max(2, sticky.height * minimapScale),
+                  }}
+                />
+              ))}
+              {board.frames.map((frame) => (
+                <div
+                  key={frame.id}
+                  className="absolute border border-teal-700/60"
+                  style={{
+                    left: (frame.x - contentBounds.minX) * minimapScale,
+                    top: (frame.y - contentBounds.minY) * minimapScale,
+                    width: Math.max(2, frame.width * minimapScale),
+                    height: Math.max(2, frame.height * minimapScale),
+                  }}
+                />
+              ))}
+              <div
+                className="absolute border border-teal-800 bg-teal-700/20"
+                style={{
+                  left: (viewX - contentBounds.minX) * minimapScale,
+                  top: (viewY - contentBounds.minY) * minimapScale,
+                  width: Math.max(8, viewW * minimapScale),
+                  height: Math.max(8, viewH * minimapScale),
+                }}
+              />
+            </div>
+          </div>
         ) : null}
       </div>
     </div>

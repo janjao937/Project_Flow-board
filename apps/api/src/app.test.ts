@@ -11,4 +11,13 @@ describe("health route", () => {
     stopWatchdog();
     await app.close();
   });
+
+  it("returns readiness payload", async () => {
+    const { app, stopWatchdog } = await buildApp(loadEnv({ NODE_ENV: "test" }));
+    const response = await app.inject({ method: "GET", url: "/ready" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "ready" });
+    stopWatchdog();
+    await app.close();
+  });
 });

@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { BoardCanvas } from "@/features/board/ui/board-canvas";
 import { HostSessionPanel } from "@/features/join/ui/host-session-panel";
+import { PlanView } from "@/features/plan/ui/plan-view";
+import { RoadmapView } from "@/features/roadmap/ui/roadmap-view";
 import { TasksBoard } from "@/features/tasks/ui/tasks-board";
 import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
@@ -36,6 +38,8 @@ export default function WorkspacePage() {
       </div>
       {page.kind === "board" ? <BoardCanvas pageId={page.id} /> : null}
       {page.kind === "tasks" ? <TasksBoard pageId={page.id} /> : null}
+      {page.kind === "roadmap" ? <RoadmapView pageId={page.id} /> : null}
+      {page.kind === "plan" ? <PlanView pageId={page.id} /> : null}
     </main>
   );
 }

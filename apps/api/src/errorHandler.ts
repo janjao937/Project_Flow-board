@@ -26,7 +26,7 @@ export function errorHandler(
 
   if (error instanceof ZodError) {
     const appError = AppError.from(ErrorCode.VALIDATION_FAILED, {
-      fields: error.issues.map((issue) => issue.path.join(".")),
+      fields: error.issues.map((issue: { path: PropertyKey[] }) => issue.path.join(".")),
     });
     request.log.warn({ requestId, code: appError.code }, appError.message);
     reply.status(appError.httpStatus).send(toErrorResponse(appError, requestId));

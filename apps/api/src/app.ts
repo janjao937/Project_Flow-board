@@ -19,8 +19,28 @@ export interface BuiltApp {
 
 export async function buildApp(env: Env): Promise<BuiltApp> {
   const app = Fastify({
-    logger: env.NODE_ENV !== "test",
+    logger:
+      env.NODE_ENV === "test"
+        ? false
+        : {
+            level: "info",
+            redact: ["req.headers.authorization", "JWT_SECRET"],
+          },
+    requestIdHeader: "x-request-id",
+    genReqId: () => crypto.randomUUID(),
   });
+
+  if (env.NODE_ENV !== "test") {
+    app.addHook("onRequest", async (request) => {
+      request.log.info({ method: request.method, url: request.url }, "request");
+    });
+    app.addHook("onResponse", async (request, reply) => {
+      request.log.info(
+        { method: request.method, url: request.url, statusCode: reply.statusCode },
+        "response",
+      );
+    });
+  }
 
   const nats = new NatsBus(env.NATS_URL);
   if (env.NODE_ENV !== "test") {

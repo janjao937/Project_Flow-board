@@ -9,6 +9,7 @@ export interface StickyNote {
   text: string;
   color: StickyColor;
   zIndex: number;
+  groupId?: string | null;
 }
 
 export type ShapeKind = "rect" | "ellipse" | "triangle" | "arrow";
@@ -23,6 +24,7 @@ export interface BoardShape {
   stroke: string;
   fill: string;
   zIndex: number;
+  groupId?: string | null;
 }
 
 export interface BoardConnector {
@@ -41,6 +43,31 @@ export interface BoardImage {
   height: number;
   src: string;
   zIndex: number;
+  groupId?: string | null;
+}
+
+export interface BoardFrame {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  title: string;
+  zIndex: number;
+}
+
+export interface FreehandStroke {
+  id: string;
+  points: Array<{ x: number; y: number }>;
+  color: string;
+  width: number;
+  zIndex: number;
+  groupId?: string | null;
+}
+
+export interface BoardGroup {
+  id: string;
+  memberIds: string[];
 }
 
 export interface BoardState {
@@ -48,6 +75,9 @@ export interface BoardState {
   shapes: BoardShape[];
   connectors: BoardConnector[];
   images: BoardImage[];
+  frames: BoardFrame[];
+  strokes: FreehandStroke[];
+  groups: BoardGroup[];
   gridEnabled: boolean;
 }
 
@@ -75,9 +105,38 @@ export interface TasksState {
   labels: TaskLabel[];
 }
 
+export interface RoadmapMilestone {
+  id: string;
+  title: string;
+  date: string;
+  lane: string;
+  dependsOn: string[];
+  linkedCardIds: string[];
+}
+
+export interface RoadmapState {
+  milestones: RoadmapMilestone[];
+  lanes: string[];
+}
+
+export interface PlanBox {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  linkedCardIds: string[];
+  capacityHours: number;
+}
+
+export interface PlanState {
+  boxes: PlanBox[];
+}
+
 export interface WorkflowDocumentData {
   boards: Record<string, BoardState>;
   tasks: Record<string, TasksState>;
+  roadmaps: Record<string, RoadmapState>;
+  plans: Record<string, PlanState>;
 }
 
 export const STICKY_COLORS: StickyColor[] = ["butter", "mint", "sky", "blush", "fog"];
@@ -96,6 +155,9 @@ export function createEmptyBoard(): BoardState {
     shapes: [],
     connectors: [],
     images: [],
+    frames: [],
+    strokes: [],
+    groups: [],
     gridEnabled: false,
   };
 }
@@ -118,10 +180,60 @@ export function createEmptyTasks(): TasksState {
   };
 }
 
-export function createDocumentData(boardPageId: string, tasksPageId: string): WorkflowDocumentData {
+export function createEmptyRoadmap(): RoadmapState {
+  const now = new Date();
+  const later = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14);
+  return {
+    lanes: ["Product", "Engineering"],
+    milestones: [
+      {
+        id: crypto.randomUUID(),
+        title: "Kickoff",
+        date: now.toISOString().slice(0, 10),
+        lane: "Product",
+        dependsOn: [],
+        linkedCardIds: [],
+      },
+      {
+        id: crypto.randomUUID(),
+        title: "Beta",
+        date: later.toISOString().slice(0, 10),
+        lane: "Engineering",
+        dependsOn: [],
+        linkedCardIds: [],
+      },
+    ],
+  };
+}
+
+export function createEmptyPlan(): PlanState {
+  const start = new Date();
+  const end = new Date(start.getTime() + 1000 * 60 * 60 * 24 * 7);
+  return {
+    boxes: [
+      {
+        id: crypto.randomUUID(),
+        title: "Sprint 1",
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+        linkedCardIds: [],
+        capacityHours: 40,
+      },
+    ],
+  };
+}
+
+export function createDocumentData(
+  boardPageId: string,
+  tasksPageId: string,
+  roadmapPageId: string,
+  planPageId: string,
+): WorkflowDocumentData {
   return {
     boards: { [boardPageId]: createEmptyBoard() },
     tasks: { [tasksPageId]: createEmptyTasks() },
+    roadmaps: { [roadmapPageId]: createEmptyRoadmap() },
+    plans: { [planPageId]: createEmptyPlan() },
   };
 }
 
@@ -131,7 +243,7 @@ export function encodeDocumentData(data: WorkflowDocumentData): Uint8Array {
 
 export function decodeDocumentData(bytes: Uint8Array): WorkflowDocumentData {
   if (bytes.byteLength === 0) {
-    return { boards: {}, tasks: {} };
+    return { boards: {}, tasks: {}, roadmaps: {}, plans: {} };
   }
   const parsed = JSON.parse(new TextDecoder().decode(bytes)) as WorkflowDocumentData;
   const boards: Record<string, BoardState> = {};
@@ -141,11 +253,16 @@ export function decodeDocumentData(bytes: Uint8Array): WorkflowDocumentData {
       shapes: board.shapes ?? [],
       connectors: board.connectors ?? [],
       images: board.images ?? [],
+      frames: board.frames ?? [],
+      strokes: board.strokes ?? [],
+      groups: board.groups ?? [],
       gridEnabled: board.gridEnabled ?? false,
     };
   }
   return {
     boards,
     tasks: parsed.tasks ?? {},
+    roadmaps: parsed.roadmaps ?? {},
+    plans: parsed.plans ?? {},
   };
 }

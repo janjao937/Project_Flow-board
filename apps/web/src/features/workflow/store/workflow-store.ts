@@ -2,7 +2,8 @@
 
 import { create } from "zustand";
 import type { WorkflowManifest } from "@/shared/packages/flowpkg";
-import type { BoardState, StickyNote, TasksState, WorkflowDocumentData } from "../domain/document-data";
+import type { BoardState, PlanState, RoadmapState, TasksState, WorkflowDocumentData } from "../domain/document-data";
+import { createEmptyBoard } from "../domain/document-data";
 import { createNewWorkflow, packWorkflow, unpackWorkflow } from "../application/workflow-io";
 import {
   downloadBytes,
@@ -13,6 +14,20 @@ import {
 } from "../infrastructure/file-system";
 import { rememberRecent } from "../infrastructure/recent";
 import { useSessionStore } from "@/features/join/store/session-store";
+import { normalizeBoard } from "@/features/board/lib/normalize-board";
+import { renderBoardPreviewPng } from "@/features/board/lib/export-board";
+
+async function buildPreview(data: WorkflowDocumentData): Promise<Uint8Array | undefined> {
+  const board = Object.values(data.boards)[0];
+  if (!board) {
+    return undefined;
+  }
+  try {
+    return await renderBoardPreviewPng(normalizeBoard(board));
+  } catch {
+    return undefined;
+  }
+}
 
 interface HistoryEntry {
   data: WorkflowDocumentData;
@@ -34,6 +49,8 @@ interface WorkflowStore {
   setActivePage: (pageId: string) => void;
   updateBoard: (pageId: string, updater: (board: BoardState) => BoardState) => void;
   updateTasks: (pageId: string, updater: (tasks: TasksState) => TasksState) => void;
+  updateRoadmap: (pageId: string, updater: (roadmap: RoadmapState) => RoadmapState) => void;
+  updatePlan: (pageId: string, updater: (plan: PlanState) => PlanState) => void;
   applyRemote: (manifest: WorkflowManifest, data: WorkflowDocumentData) => void;
   undo: () => void;
   redo: () => void;
@@ -97,7 +114,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   openFromDisk: async () => {
     const picked = await pickOpenFlowPackage();
-    const opened = unpackWorkflow(picked.bytes);
+    const opened = await unpackWorkflow(picked.bytes);
     set({
       manifest: opened.manifest,
       data: opened.data,
@@ -116,7 +133,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (!state.manifest || !state.data || !assertCanSave()) {
       return;
     }
-    const bytes = packWorkflow(state.manifest, state.data);
+    const preview = await buildPreview(state.data);
+    const bytes = await packWorkflow(state.manifest, state.data, preview);
     const name = state.fileName ?? `${state.manifest.name}.flowpkg`;
     if (state.fileHandle) {
       await writeToHandle(state.fileHandle, bytes);
@@ -141,7 +159,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (!state.manifest || !state.data || !assertCanSave()) {
       return;
     }
-    const bytes = packWorkflow(state.manifest, state.data);
+    const preview = await buildPreview(state.data);
+    const bytes = await packWorkflow(state.manifest, state.data, preview);
     const suggested = `${state.manifest.name}.flowpkg`;
     const handle = await pickSaveFlowPackage(suggested);
     if (handle) {
@@ -167,7 +186,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       return;
     }
     const history = pushHistory(state);
-    const current = state.data.boards[pageId] ?? { stickies: [] as StickyNote[], shapes: [], connectors: [], images: [], gridEnabled: false };
+    const current = state.data.boards[pageId] ?? createEmptyBoard();
     set({
       ...history,
       dirty: true,
@@ -195,6 +214,46 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         ...state.data,
         tasks: {
           ...state.data.tasks,
+          [pageId]: updater(current),
+        },
+      },
+    });
+  },
+
+  updateRoadmap: (pageId, updater) => {
+    const state = get();
+    if (!state.data || !assertCanEdit()) {
+      return;
+    }
+    const history = pushHistory(state);
+    const current = state.data.roadmaps[pageId] ?? { milestones: [], lanes: [] };
+    set({
+      ...history,
+      dirty: true,
+      data: {
+        ...state.data,
+        roadmaps: {
+          ...state.data.roadmaps,
+          [pageId]: updater(current),
+        },
+      },
+    });
+  },
+
+  updatePlan: (pageId, updater) => {
+    const state = get();
+    if (!state.data || !assertCanEdit()) {
+      return;
+    }
+    const history = pushHistory(state);
+    const current = state.data.plans[pageId] ?? { boxes: [] };
+    set({
+      ...history,
+      dirty: true,
+      data: {
+        ...state.data,
+        plans: {
+          ...state.data.plans,
           [pageId]: updater(current),
         },
       },
