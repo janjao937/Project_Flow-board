@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { MilestoneStatus, RoadmapMilestone } from "@/features/workflow/domain/document-data";
 import {
@@ -13,6 +13,7 @@ import {
 
 const LANE_WIDTH = 112;
 const ROW_HEIGHT = 56;
+const DRAG_TYPE = "application/x-flowboard-milestone";
 
 const BAR_CLASS: Record<MilestoneStatus, string> = {
   planned: "bg-slate-500/80",
@@ -25,16 +26,21 @@ export function TimelineBoard({
   milestones,
   zoom,
   selectedId,
+  canEdit,
   onSelect,
+  onMoveToLane,
 }: {
   lanes: string[];
   milestones: RoadmapMilestone[];
   zoom: TimelineZoom;
   selectedId: string | null;
+  canEdit: boolean;
   onSelect: (id: string) => void;
+  onMoveToLane: (milestoneId: string, lane: string) => void;
 }) {
   const t = useTranslations("roadmap");
   const locale = useLocale();
+  const [dropLane, setDropLane] = useState<string | null>(null);
 
   const range = useMemo(() => buildTimelineRange(milestones, zoom), [milestones, zoom]);
   const ticks = useMemo(() => buildTimelineTicks(range, zoom, locale), [locale, range, zoom]);
@@ -64,8 +70,33 @@ export function TimelineBoard({
 
       {lanes.map((lane) => {
         const laneItems = milestones.filter((item) => item.lane === lane);
+        const isDropTarget = dropLane === lane;
         return (
-          <div key={lane} className="flex min-w-max border-b border-border/40 last:border-b-0">
+          <div
+            key={lane}
+            className={`flex min-w-max border-b border-border/40 last:border-b-0 ${isDropTarget ? "bg-teal-700/10" : ""}`}
+            onDragOver={(event) => {
+              if (!canEdit) {
+                return;
+              }
+              event.preventDefault();
+              setDropLane(lane);
+            }}
+            onDragLeave={() => {
+              setDropLane((current) => (current === lane ? null : current));
+            }}
+            onDrop={(event) => {
+              if (!canEdit) {
+                return;
+              }
+              event.preventDefault();
+              const milestoneId = event.dataTransfer.getData(DRAG_TYPE);
+              if (milestoneId) {
+                onMoveToLane(milestoneId, lane);
+              }
+              setDropLane(null);
+            }}
+          >
             <div
               className="border-border/60 bg-background/95 sticky left-0 z-10 flex shrink-0 items-center border-r px-2 text-xs font-medium"
               style={{ width: LANE_WIDTH, height: ROW_HEIGHT }}
@@ -95,10 +126,20 @@ export function TimelineBoard({
                   <button
                     key={milestone.id}
                     type="button"
+                    draggable={canEdit}
                     title={`${milestone.title} (${milestone.startDate} → ${milestone.endDate})`}
-                    className={`absolute top-3 h-8 truncate rounded px-2 text-left text-[11px] font-medium text-white shadow-sm transition-opacity ${BAR_CLASS[milestone.status]} ${selected ? "ring-2 ring-offset-1 ring-teal-900 ring-offset-background" : "hover:opacity-90"}`}
+                    className={`absolute top-3 h-8 cursor-grab truncate rounded px-2 text-left text-[11px] font-medium text-white shadow-sm transition-opacity active:cursor-grabbing ${BAR_CLASS[milestone.status]} ${selected ? "ring-2 ring-offset-1 ring-teal-900 ring-offset-background" : "hover:opacity-90"}`}
                     style={{ left: bar.left, width: bar.width }}
                     onClick={() => onSelect(milestone.id)}
+                    onDragStart={(event) => {
+                      if (!canEdit) {
+                        return;
+                      }
+                      event.dataTransfer.setData(DRAG_TYPE, milestone.id);
+                      event.dataTransfer.effectAllowed = "move";
+                      onSelect(milestone.id);
+                    }}
+                    onDragEnd={() => setDropLane(null)}
                   >
                     {milestone.title}
                   </button>
@@ -106,7 +147,7 @@ export function TimelineBoard({
               })}
               {laneItems.length === 0 ? (
                 <p className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center px-3 text-[11px]">
-                  {t("emptyLane")}
+                  {isDropTarget ? t("dropHere") : t("emptyLane")}
                 </p>
               ) : null}
             </div>

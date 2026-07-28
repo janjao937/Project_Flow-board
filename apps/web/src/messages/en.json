@@ -94,9 +94,20 @@
       "quarter": "Quarter"
     },
     "timelineHint": "Scroll the timeline horizontally. Amber line marks today.",
+    "dragHint": "Drag a milestone bar onto another lane to move it.",
+    "dropHere": "Drop here",
     "selectHint": "Select a milestone bar to edit details.",
     "editTitle": "Edit milestone",
-    "closeEditor": "Close"
+    "closeEditor": "Close",
+    "lanesTitle": "Lanes",
+    "addLane": "Add lane",
+    "removeLane": "Remove",
+    "renameLane": "Rename lane",
+    "saveLane": "Save",
+    "laneNamePlaceholder": "Lane name",
+    "moveLaneUp": "Move lane up",
+    "moveLaneDown": "Move lane down",
+    "moveToLane": "Move to {lane}"
   },
   "plan": {
     "title": "Plan",

@@ -8,6 +8,14 @@ import type { MilestoneStatus, RoadmapMilestone } from "@/features/workflow/doma
 import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import {
+  addLane,
+  ensureLanes,
+  moveLane,
+  moveMilestoneToLane,
+  removeLane,
+  renameLane,
+} from "../lib/lanes";
+import {
   EMPTY_ROADMAP,
   MILESTONE_STATUSES,
   createMilestoneDraft,
@@ -15,6 +23,7 @@ import {
   sortMilestones,
 } from "../lib/normalize";
 import type { TimelineZoom } from "../lib/timeline-range";
+import { LaneManager } from "./lane-manager";
 import { TimelineBoard } from "./timeline-board";
 
 const EMPTY_TASKS_MAP: Record<string, never> = {};
@@ -41,7 +50,7 @@ export function RoadmapView({ pageId }: { pageId: string }) {
     );
   }, [tasksByPage]);
 
-  const lanes = roadmap.lanes.length > 0 ? roadmap.lanes : ["Product"];
+  const lanes = ensureLanes(roadmap);
   const sorted = useMemo(() => sortMilestones(roadmap.milestones), [roadmap.milestones]);
   const selected = sorted.find((item) => item.id === selectedId) ?? null;
 
@@ -73,6 +82,10 @@ export function RoadmapView({ pageId }: { pageId: string }) {
     }));
   };
 
+  const applyLaneUpdate = (updater: (current: typeof roadmap) => typeof roadmap) => {
+    updateRoadmap(pageId, (current) => updater(current));
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:p-4">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
@@ -96,7 +109,7 @@ export function RoadmapView({ pageId }: { pageId: string }) {
             disabled={!canEdit}
             onClick={() => {
               updateRoadmap(pageId, (current) => {
-                const nextLanes = current.lanes.length > 0 ? current.lanes : ["Product"];
+                const nextLanes = ensureLanes(current);
                 const draft = createMilestoneDraft(nextLanes[0] ?? "Product", t("milestone"));
                 setSelectedId(draft.id);
                 return {
@@ -112,15 +125,30 @@ export function RoadmapView({ pageId }: { pageId: string }) {
         </div>
       </div>
 
-      <div className="shrink-0">
-        <TimelineBoard
+      <div className="grid shrink-0 gap-3 lg:grid-cols-[minmax(0,1fr)_16rem]">
+        <div className="min-w-0">
+          <TimelineBoard
+            lanes={lanes}
+            milestones={sorted}
+            zoom={zoom}
+            selectedId={selectedId}
+            canEdit={canEdit}
+            onSelect={setSelectedId}
+            onMoveToLane={(milestoneId, lane) => {
+              applyLaneUpdate((current) => moveMilestoneToLane(current, milestoneId, lane));
+            }}
+          />
+          <p className="text-muted-foreground mt-1 text-[11px]">{t("timelineHint")}</p>
+          <p className="text-muted-foreground text-[11px]">{t("dragHint")}</p>
+        </div>
+        <LaneManager
           lanes={lanes}
-          milestones={sorted}
-          zoom={zoom}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+          canEdit={canEdit}
+          onAdd={(name) => applyLaneUpdate((current) => addLane(current, name))}
+          onRename={(from, to) => applyLaneUpdate((current) => renameLane(current, from, to))}
+          onRemove={(name) => applyLaneUpdate((current) => removeLane(current, name))}
+          onMove={(name, direction) => applyLaneUpdate((current) => moveLane(current, name, direction))}
         />
-        <p className="text-muted-foreground mt-1 text-[11px]">{t("timelineHint")}</p>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
@@ -191,7 +219,9 @@ export function RoadmapView({ pageId }: { pageId: string }) {
               className="border-input bg-background mb-3 h-8 w-full rounded-md border px-2 text-xs"
               disabled={!canEdit}
               value={selected.lane}
-              onChange={(event) => patchMilestone(selected.id, { lane: event.target.value })}
+              onChange={(event) => {
+                applyLaneUpdate((current) => moveMilestoneToLane(current, selected.id, event.target.value));
+              }}
             >
               {lanes.map((option) => (
                 <option key={option} value={option}>
@@ -199,6 +229,22 @@ export function RoadmapView({ pageId }: { pageId: string }) {
                 </option>
               ))}
             </select>
+
+            <div className="mb-3 flex flex-wrap gap-1">
+              {lanes
+                .filter((lane) => lane !== selected.lane)
+                .map((lane) => (
+                  <Button
+                    key={lane}
+                    size="sm"
+                    variant="outline"
+                    disabled={!canEdit}
+                    onClick={() => applyLaneUpdate((current) => moveMilestoneToLane(current, selected.id, lane))}
+                  >
+                    {t("moveToLane", { lane })}
+                  </Button>
+                ))}
+            </div>
 
             <label className="text-muted-foreground mb-1 block text-[11px]">{t("dependsOn")}</label>
             <select

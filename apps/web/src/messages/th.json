@@ -94,9 +94,20 @@
       "quarter": "ไตรมาส"
     },
     "timelineHint": "เลื่อน timeline แนวนอนได้ เส้นสีอำพันคือวันนี้",
+    "dragHint": "ลากแถบ milestone ไปวางที่เลนอื่นเพื่อย้าย",
+    "dropHere": "วางที่นี่",
     "selectHint": "เลือกแถบ milestone เพื่อแก้ไขรายละเอียด",
     "editTitle": "แก้ไข milestone",
-    "closeEditor": "ปิด"
+    "closeEditor": "ปิด",
+    "lanesTitle": "เลน",
+    "addLane": "เพิ่มเลน",
+    "removeLane": "ลบ",
+    "renameLane": "เปลี่ยนชื่อเลน",
+    "saveLane": "บันทึก",
+    "laneNamePlaceholder": "ชื่อเลน",
+    "moveLaneUp": "เลื่อนเลนขึ้น",
+    "moveLaneDown": "เลื่อนเลนลง",
+    "moveToLane": "ย้ายไป {lane}"
   },
   "plan": {
     "title": "แผน",
