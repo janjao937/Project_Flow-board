@@ -18,6 +18,7 @@ import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { alignItems, distributeItems, type AlignMode } from "../lib/align";
 import { exportBoardPdf, exportBoardPng } from "../lib/export-board";
 import { EMPTY_BOARD, normalizeBoard } from "../lib/normalize-board";
+import { DraggableBoardItem } from "./draggable-board-item";
 import { StickyNoteView } from "./sticky-note-view";
 
 type Tool = "select" | "pan" | "sticky" | ShapeKind | "image" | "connector" | "frame" | "freehand";
@@ -29,6 +30,42 @@ const COLOR_CLASS: Record<string, string> = {
   blush: "bg-[#f0c4c0]",
   fog: "bg-[#d9dde3]",
 };
+
+const PEN_COLORS = [
+  { id: "teal", value: "#0f766e" },
+  { id: "ink", value: "#1f2937" },
+  { id: "crimson", value: "#b91c1c" },
+  { id: "amber", value: "#d97706" },
+  { id: "sky", value: "#0284c7" },
+  { id: "violet", value: "#7c3aed" },
+  { id: "rose", value: "#e11d48" },
+  { id: "white", value: "#f8fafc" },
+] as const;
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const normalized = hex.replace("#", "");
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : normalized.padEnd(6, "0").slice(0, 6);
+  const value = Number.parseInt(full, 16);
+  if (Number.isNaN(value)) {
+    return { r: 15, g: 118, b: 110 };
+  }
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
+  return `#${[clamp(r), clamp(g), clamp(b)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+}
 
 export function BoardCanvas({ pageId }: { pageId: string }) {
   const t = useTranslations("board");
@@ -46,6 +83,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
   const [clipboard, setClipboard] = useState<{ stickies: StickyNote[]; shapes: BoardShape[] } | null>(null);
   const [draftStroke, setDraftStroke] = useState<FreehandStroke | null>(null);
   const [showMinimap, setShowMinimap] = useState(true);
+  const [penColor, setPenColor] = useState<string>(PEN_COLORS[0]!.value);
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -372,7 +410,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      <div className="border-border/60 bg-background/80 absolute inset-x-0 top-0 z-20 flex flex-wrap items-center gap-1 border-b px-2 py-2 backdrop-blur md:px-3">
+      <div className="border-border/60 bg-background/90 z-20 flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-2 backdrop-blur md:px-3">
         {(
           [
             ["select", t("select")],
@@ -440,6 +478,70 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         <Button size="sm" variant="ghost" onClick={() => void exportBoardPdf(board)}>
           {t("exportPdf")}
         </Button>
+        {tool === "freehand" ? (
+          <div className="border-border/60 ml-1 flex max-w-full flex-wrap items-center gap-2 rounded-lg border px-1.5 py-1" role="group" aria-label={t("penColor")}>
+            {PEN_COLORS.map((color) => (
+              <button
+                key={color.id}
+                type="button"
+                disabled={!canEdit}
+                aria-label={t(`penColors.${color.id}`)}
+                aria-pressed={penColor === color.value}
+                className={`h-6 w-6 rounded-full border-2 ${penColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
+                style={{ backgroundColor: color.value }}
+                onClick={() => setPenColor(color.value)}
+              />
+            ))}
+            <label className="relative inline-flex h-6 w-6 cursor-pointer overflow-hidden rounded-full border border-border/80" title={t("penRgbPicker")}>
+              <span className="sr-only">{t("penRgbPicker")}</span>
+              <input
+                type="color"
+                disabled={!canEdit}
+                value={penColor.length === 7 ? penColor : rgbToHex(hexToRgb(penColor).r, hexToRgb(penColor).g, hexToRgb(penColor).b)}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                onChange={(event) => setPenColor(event.target.value)}
+              />
+              <span className="block h-full w-full" style={{ backgroundColor: penColor }} />
+            </label>
+            <div className="flex min-w-[11rem] flex-1 flex-col gap-0.5 sm:min-w-[14rem]">
+              {(["r", "g", "b"] as const).map((channel) => {
+                const rgb = hexToRgb(penColor);
+                const value = rgb[channel];
+                return (
+                  <label key={channel} className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span className="w-3">{channel}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={255}
+                      value={value}
+                      disabled={!canEdit}
+                      aria-label={t(`penRgb.${channel}`)}
+                      className="h-1.5 flex-1 accent-teal-700"
+                      onChange={(event) => {
+                        const next = { ...rgb, [channel]: Number(event.target.value) };
+                        setPenColor(rgbToHex(next.r, next.g, next.b));
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={255}
+                      value={value}
+                      disabled={!canEdit}
+                      aria-label={t(`penRgb.${channel}`)}
+                      className="border-input bg-background h-6 w-12 rounded border px-1 text-[11px]"
+                      onChange={(event) => {
+                        const next = { ...rgb, [channel]: Number(event.target.value) || 0 };
+                        setPenColor(rgbToHex(next.r, next.g, next.b));
+                      }}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         <div className="ml-auto flex gap-1">
           <Button size="sm" variant="ghost" disabled={!canEdit} onClick={undo}>
             {t("undo")}
@@ -451,14 +553,14 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       </div>
 
       {!canEdit ? (
-        <div className="bg-amber-500/15 text-amber-950 dark:text-amber-100 absolute inset-x-0 top-12 z-20 px-3 py-1 text-center text-xs">
+        <div className="bg-amber-500/15 text-amber-950 dark:text-amber-100 shrink-0 px-3 py-1 text-center text-xs">
           {t("readOnly")}
         </div>
       ) : null}
 
       <div
         ref={viewportRef}
-        className={`board-surface relative mt-12 min-h-0 flex-1 touch-none overflow-hidden ${board.gridEnabled ? "board-grid" : ""}`}
+        className={`board-surface relative min-h-0 flex-1 touch-none overflow-hidden ${board.gridEnabled ? "board-grid" : ""}`}
         onWheel={(event) => {
           event.preventDefault();
           const factor = event.deltaY > 0 ? 0.92 : 1.08;
@@ -478,7 +580,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             setDraftStroke({
               id: crypto.randomUUID(),
               points: [{ x: world.x, y: world.y }],
-              color: "#0f766e",
+              color: penColor,
               width: 3,
               zIndex: nextZ(),
             });
@@ -512,7 +614,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           setDraftStroke(null);
         }}
         onDoubleClick={(event) => {
-          if (!canEdit || tool !== "select") {
+          if (!canEdit || tool !== "select" || event.target !== event.currentTarget) {
             return;
           }
           const world = screenToWorld(event.clientX, event.clientY);
@@ -530,10 +632,12 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           }
           if (tool === "frame") {
             addFrame(world.x - 210, world.y - 140);
+            setTool("select");
             return;
           }
           if (tool === "rect" || tool === "ellipse" || tool === "triangle" || tool === "arrow") {
             addShape(tool, world.x - 70, world.y - 50);
+            setTool("select");
             return;
           }
           if (tool === "image") {
@@ -609,19 +713,43 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           style={{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})` }}
         >
           {board.frames.map((frame) => (
-            <div
+            <DraggableBoardItem
               key={frame.id}
+              item={frame}
+              selected={selectedIds.includes(frame.id)}
+              canEdit={canEdit && tool === "select"}
+              zoom={camera.zoom}
               className={`absolute border-2 border-dashed border-teal-700/70 bg-teal-700/5 ${selectedIds.includes(frame.id) ? "ring-2 ring-teal-700" : ""}`}
               style={{
-                left: frame.x,
-                top: frame.y,
                 width: frame.width,
                 height: frame.height,
                 zIndex: frame.zIndex,
               }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                setSelectedIds(event.shiftKey ? [...selectedIds, frame.id] : [frame.id]);
+              onSelect={(additive) => {
+                setSelectedIds((prev) =>
+                  additive
+                    ? prev.includes(frame.id)
+                      ? prev.filter((id) => id !== frame.id)
+                      : [...prev, frame.id]
+                    : [frame.id],
+                );
+              }}
+              onMove={(nextFrame) => {
+                updateBoard(pageId, (current) => {
+                  const next = normalizeBoard(current);
+                  return {
+                    ...next,
+                    frames: next.frames.map((item) =>
+                      item.id === frame.id
+                        ? {
+                            ...item,
+                            x: snapToGrid(nextFrame.x, next.gridEnabled),
+                            y: snapToGrid(nextFrame.y, next.gridEnabled),
+                          }
+                        : item,
+                    ),
+                  };
+                });
               }}
             >
               <Input
@@ -639,7 +767,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                   });
                 }}
               />
-            </div>
+            </DraggableBoardItem>
           ))}
 
           <svg className="pointer-events-none absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1 }}>
@@ -695,12 +823,15 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           </svg>
 
           {board.shapes.map((shape) => (
-            <div
+            <DraggableBoardItem
               key={shape.id}
+              item={shape}
+              selected={selectedIds.includes(shape.id)}
+              canEdit={canEdit && (tool === "select" || tool === "connector")}
+              canDrag={tool === "select"}
+              zoom={camera.zoom}
               className={`absolute border-2 ${selectedIds.includes(shape.id) ? "ring-2 ring-teal-700" : ""}`}
               style={{
-                left: shape.x,
-                top: shape.y,
                 width: shape.width,
                 height: shape.height,
                 borderColor: shape.stroke,
@@ -709,8 +840,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 clipPath: shape.kind === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" : undefined,
                 zIndex: shape.zIndex,
               }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
+              onSelect={(additive) => {
                 if (tool === "connector") {
                   if (!connectorFrom) {
                     setConnectorFrom(shape.id);
@@ -736,34 +866,83 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                   }
                   return;
                 }
-                if (event.shiftKey) {
-                  setSelectedIds((prev) =>
-                    prev.includes(shape.id) ? prev.filter((id) => id !== shape.id) : [...prev, shape.id],
-                  );
-                } else {
-                  setSelectedIds([shape.id]);
-                }
+                setSelectedIds((prev) =>
+                  additive
+                    ? prev.includes(shape.id)
+                      ? prev.filter((id) => id !== shape.id)
+                      : [...prev, shape.id]
+                    : [shape.id],
+                );
               }}
-            />
+              onMove={(nextShape) => {
+                if (tool !== "select") {
+                  return;
+                }
+                updateBoard(pageId, (current) => {
+                  const next = normalizeBoard(current);
+                  return {
+                    ...next,
+                    shapes: next.shapes.map((item) =>
+                      item.id === shape.id
+                        ? {
+                            ...item,
+                            x: snapToGrid(nextShape.x, next.gridEnabled),
+                            y: snapToGrid(nextShape.y, next.gridEnabled),
+                          }
+                        : item,
+                    ),
+                  };
+                });
+              }}
+            >
+              <span className="sr-only">{shape.kind}</span>
+            </DraggableBoardItem>
           ))}
 
           {board.images.map((image) => (
-            <div
+            <DraggableBoardItem
               key={image.id}
+              item={image}
+              selected={selectedIds.includes(image.id)}
+              canEdit={canEdit && tool === "select"}
+              canDrag={tool === "select"}
+              zoom={camera.zoom}
               className={`absolute bg-cover bg-center ${selectedIds.includes(image.id) ? "ring-2 ring-teal-700" : ""}`}
               style={{
-                left: image.x,
-                top: image.y,
                 width: image.width,
                 height: image.height,
                 zIndex: image.zIndex,
                 backgroundImage: `url(${image.src})`,
               }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                setSelectedIds(event.shiftKey ? [...selectedIds, image.id] : [image.id]);
+              onSelect={(additive) => {
+                setSelectedIds((prev) =>
+                  additive
+                    ? prev.includes(image.id)
+                      ? prev.filter((id) => id !== image.id)
+                      : [...prev, image.id]
+                    : [image.id],
+                );
               }}
-            />
+              onMove={(nextImage) => {
+                updateBoard(pageId, (current) => {
+                  const next = normalizeBoard(current);
+                  return {
+                    ...next,
+                    images: next.images.map((item) =>
+                      item.id === image.id
+                        ? {
+                            ...item,
+                            x: snapToGrid(nextImage.x, next.gridEnabled),
+                            y: snapToGrid(nextImage.y, next.gridEnabled),
+                          }
+                        : item,
+                    ),
+                  };
+                });
+              }}
+            >
+              <span className="sr-only">image</span>
+            </DraggableBoardItem>
           ))}
 
           {board.stickies.map((sticky) => (
@@ -771,9 +950,11 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               key={sticky.id}
               sticky={sticky}
               selected={selectedIds.includes(sticky.id)}
-              colorClass={COLOR_CLASS[sticky.color] ?? COLOR_CLASS.butter}
+              canEdit={canEdit && (tool === "select" || tool === "connector")}
+              canDrag={tool === "select"}
+              colorClass={COLOR_CLASS[sticky.color] ?? COLOR_CLASS.butter!}
               zoom={camera.zoom}
-              onSelect={() => {
+              onSelect={(additive) => {
                 if (tool === "connector") {
                   if (!connectorFrom) {
                     setConnectorFrom(sticky.id);
@@ -799,7 +980,13 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                   }
                   return;
                 }
-                setSelectedIds([sticky.id]);
+                setSelectedIds((prev) =>
+                  additive
+                    ? prev.includes(sticky.id)
+                      ? prev.filter((id) => id !== sticky.id)
+                      : [...prev, sticky.id]
+                    : [sticky.id],
+                );
               }}
               onChange={(nextSticky) => {
                 if (!canEdit) {
