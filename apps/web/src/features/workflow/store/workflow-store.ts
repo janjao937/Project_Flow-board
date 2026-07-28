@@ -16,6 +16,7 @@ import { rememberRecent } from "../infrastructure/recent";
 import { useSessionStore } from "@/features/join/store/session-store";
 import { normalizeBoard } from "@/features/board/lib/normalize-board";
 import { renderBoardPreviewPng } from "@/features/board/lib/export-board";
+import { EMPTY_ROADMAP } from "@/features/roadmap/lib/normalize";
 
 async function buildPreview(data: WorkflowDocumentData): Promise<Uint8Array | undefined> {
   const board = Object.values(data.boards)[0];
@@ -226,7 +227,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       return;
     }
     const history = pushHistory(state);
-    const current = state.data.roadmaps[pageId] ?? { milestones: [], lanes: [] };
+    const current = state.data.roadmaps[pageId] ?? EMPTY_ROADMAP;
     set({
       ...history,
       dirty: true,

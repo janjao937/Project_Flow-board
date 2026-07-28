@@ -68,14 +68,35 @@
   },
   "roadmap": {
     "title": "Roadmap",
-    "subtitle": "Milestones on a timeline, with dependencies and task links.",
+    "subtitle": "Milestones with date ranges, status, and task links.",
     "addMilestone": "Add milestone",
     "milestone": "Milestone",
     "date": "Date",
+    "startDate": "Start",
+    "endDate": "End",
+    "statusLabel": "Status",
+    "status": {
+      "planned": "Planned",
+      "active": "Active",
+      "done": "Done"
+    },
+    "lane": "Lane",
     "dependsOn": "Depends on",
     "linkedCards": "Linked task",
     "none": "None",
-    "noCards": "No task cards yet"
+    "noCards": "No task cards yet",
+    "emptyLane": "No milestones in this lane",
+    "items": "items",
+    "remove": "Remove",
+    "zoom": {
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter"
+    },
+    "timelineHint": "Scroll the timeline horizontally. Amber line marks today.",
+    "selectHint": "Select a milestone bar to edit details.",
+    "editTitle": "Edit milestone",
+    "closeEditor": "Close"
   },
   "plan": {
     "title": "Plan",

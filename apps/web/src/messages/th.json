@@ -68,14 +68,35 @@
   },
   "roadmap": {
     "title": "โรดแมป",
-    "subtitle": "จุดหมายบนเส้นเวลา พร้อม dependency และลิงก์งาน",
+    "subtitle": "จุดหมายพร้อมช่วงวันที่ สถานะ และลิงก์งาน",
     "addMilestone": "เพิ่ม milestone",
     "milestone": "Milestone",
     "date": "วันที่",
+    "startDate": "เริ่ม",
+    "endDate": "จบ",
+    "statusLabel": "สถานะ",
+    "status": {
+      "planned": "วางแผน",
+      "active": "กำลังทำ",
+      "done": "เสร็จ"
+    },
+    "lane": "เลน",
     "dependsOn": "ขึ้นกับ",
     "linkedCards": "ลิงก์งาน",
     "none": "ไม่มี",
-    "noCards": "ยังไม่มีการ์ดงาน"
+    "noCards": "ยังไม่มีการ์ดงาน",
+    "emptyLane": "ยังไม่มี milestone ในเลนนี้",
+    "items": "รายการ",
+    "remove": "ลบ",
+    "zoom": {
+      "week": "สัปดาห์",
+      "month": "เดือน",
+      "quarter": "ไตรมาส"
+    },
+    "timelineHint": "เลื่อน timeline แนวนอนได้ เส้นสีอำพันคือวันนี้",
+    "selectHint": "เลือกแถบ milestone เพื่อแก้ไขรายละเอียด",
+    "editTitle": "แก้ไข milestone",
+    "closeEditor": "ปิด"
   },
   "plan": {
     "title": "แผน",

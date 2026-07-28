@@ -105,10 +105,15 @@ export interface TasksState {
   labels: TaskLabel[];
 }
 
+export type MilestoneStatus = "planned" | "active" | "done";
+
 export interface RoadmapMilestone {
   id: string;
   title: string;
   date: string;
+  startDate: string;
+  endDate: string;
+  status: MilestoneStatus;
   lane: string;
   dependsOn: string[];
   linkedCardIds: string[];
@@ -182,14 +187,23 @@ export function createEmptyTasks(): TasksState {
 
 export function createEmptyRoadmap(): RoadmapState {
   const now = new Date();
+  const week = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 7);
   const later = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14);
+  const laterEnd = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 21);
+  const kickoffStart = now.toISOString().slice(0, 10);
+  const kickoffEnd = week.toISOString().slice(0, 10);
+  const betaStart = later.toISOString().slice(0, 10);
+  const betaEnd = laterEnd.toISOString().slice(0, 10);
   return {
     lanes: ["Product", "Engineering"],
     milestones: [
       {
         id: crypto.randomUUID(),
         title: "Kickoff",
-        date: now.toISOString().slice(0, 10),
+        date: kickoffStart,
+        startDate: kickoffStart,
+        endDate: kickoffEnd,
+        status: "active",
         lane: "Product",
         dependsOn: [],
         linkedCardIds: [],
@@ -197,7 +211,10 @@ export function createEmptyRoadmap(): RoadmapState {
       {
         id: crypto.randomUUID(),
         title: "Beta",
-        date: later.toISOString().slice(0, 10),
+        date: betaStart,
+        startDate: betaStart,
+        endDate: betaEnd,
+        status: "planned",
         lane: "Engineering",
         dependsOn: [],
         linkedCardIds: [],
@@ -259,10 +276,39 @@ export function decodeDocumentData(bytes: Uint8Array): WorkflowDocumentData {
       gridEnabled: board.gridEnabled ?? false,
     };
   }
+  const roadmaps: Record<string, RoadmapState> = {};
+  for (const [id, roadmap] of Object.entries(parsed.roadmaps ?? {})) {
+    const lanes =
+      Array.isArray(roadmap.lanes) && roadmap.lanes.length > 0 ? roadmap.lanes : ["Product"];
+    roadmaps[id] = {
+      lanes,
+      milestones: (roadmap.milestones ?? []).map((milestone) => {
+        const startDate = milestone.startDate || milestone.date || new Date().toISOString().slice(0, 10);
+        const endDate =
+          milestone.endDate && milestone.endDate >= startDate ? milestone.endDate : startDate;
+        const status =
+          milestone.status === "active" || milestone.status === "done" || milestone.status === "planned"
+            ? milestone.status
+            : "planned";
+        return {
+          id: milestone.id,
+          title: milestone.title ?? "Milestone",
+          date: startDate,
+          startDate,
+          endDate,
+          status,
+          lane: milestone.lane || lanes[0] || "Product",
+          dependsOn: milestone.dependsOn ?? [],
+          linkedCardIds: milestone.linkedCardIds ?? [],
+        };
+      }),
+    };
+  }
+
   return {
     boards,
     tasks: parsed.tasks ?? {},
-    roadmaps: parsed.roadmaps ?? {},
+    roadmaps,
     plans: parsed.plans ?? {},
   };
 }
