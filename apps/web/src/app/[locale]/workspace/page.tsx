@@ -33,8 +33,10 @@ export default function WorkspacePage() {
 
   return (
     <main className="relative flex min-h-0 flex-1 flex-col">
-      <div className="absolute right-3 top-3 z-30 w-[min(100%-1.5rem,20rem)]">
-        <HostSessionPanel />
+      <div className="pointer-events-none absolute right-3 top-3 z-30 max-w-[min(100%-1.5rem,20rem)]">
+        <div className="pointer-events-auto">
+          <HostSessionPanel />
+        </div>
       </div>
       {page.kind === "board" ? <BoardCanvas pageId={page.id} /> : null}
       {page.kind === "tasks" ? <TasksBoard pageId={page.id} /> : null}

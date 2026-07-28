@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeMilestone, normalizeRoadmap } from "./normalize";
+import { normalizeMilestone, normalizeRoadmap, sortMilestones } from "./normalize";
 
 describe("roadmap normalize", () => {
   it("migrates legacy date-only milestones", () => {
@@ -27,5 +27,14 @@ describe("roadmap normalize", () => {
   it("normalizes empty roadmap lanes", () => {
     const roadmap = normalizeRoadmap({ milestones: [], lanes: [] });
     expect(roadmap.lanes).toEqual(["Product"]);
+  });
+
+  it("sorts milestones by start then end date", () => {
+    const sorted = sortMilestones([
+      normalizeMilestone({ id: "b", startDate: "2026-07-10", endDate: "2026-07-12" }),
+      normalizeMilestone({ id: "a", startDate: "2026-07-01", endDate: "2026-07-20" }),
+      normalizeMilestone({ id: "c", startDate: "2026-07-01", endDate: "2026-07-02" }),
+    ]);
+    expect(sorted.map((item) => item.id)).toEqual(["c", "a", "b"]);
   });
 });

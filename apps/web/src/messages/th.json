@@ -107,7 +107,20 @@
     "laneNamePlaceholder": "ชื่อเลน",
     "moveLaneUp": "เลื่อนเลนขึ้น",
     "moveLaneDown": "เลื่อนเลนลง",
-    "moveToLane": "ย้ายไป {lane}"
+    "moveToLane": "ย้ายไป {lane}",
+    "blocked": "ติด dependency",
+    "cycleRejected": "dependency นี้จะทำให้เกิด cycle",
+    "noDependencies": "ยังไม่มี milestone อื่น",
+    "clearDependencies": "ล้าง dependencies",
+    "openTasks": "ไป Tasks",
+    "zoomLabel": "ขยาย timeline",
+    "readOnlyHint": "ดูอย่างเดียว — ตอนนี้ guest แก้ไขไม่ได้",
+    "emptyRoadmapTitle": "ยังไม่มี milestone",
+    "emptyRoadmapBody": "เพิ่ม milestone เพื่อเริ่มวางวันที่ เลน และ dependency",
+    "emptyRoadmapCta": "สร้าง milestone แรก",
+    "editorEmptyTitle": "ยังไม่ได้เลือก",
+    "emptyLanes": "ยังไม่มีเลน",
+    "linkedSelected": "ลิงก์งาน {count} รายการ"
   },
   "plan": {
     "title": "แผน",

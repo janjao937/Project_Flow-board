@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barForMilestone, buildTimelineRange, todayOffsetPx } from "./timeline-range";
+import { barForMilestone, buildTimelineRange, buildTimelineTicks, todayOffsetPx } from "./timeline-range";
 import type { RoadmapMilestone } from "@/features/workflow/domain/document-data";
 
 const sample: RoadmapMilestone[] = [
@@ -58,5 +58,12 @@ describe("timeline-range", () => {
       5,
     );
     expect(todayOffsetPx(range)).not.toBeNull();
+  });
+
+  it("builds readable ticks for month zoom", () => {
+    const range = buildTimelineRange(sample, "month", 2);
+    const ticks = buildTimelineTicks(range, "month", "en");
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(ticks[0]?.label.length).toBeGreaterThan(0);
   });
 });

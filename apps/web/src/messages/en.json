@@ -107,7 +107,20 @@
     "laneNamePlaceholder": "Lane name",
     "moveLaneUp": "Move lane up",
     "moveLaneDown": "Move lane down",
-    "moveToLane": "Move to {lane}"
+    "moveToLane": "Move to {lane}",
+    "blocked": "Blocked",
+    "cycleRejected": "That dependency would create a cycle.",
+    "noDependencies": "No other milestones yet",
+    "clearDependencies": "Clear dependencies",
+    "openTasks": "Open Tasks",
+    "zoomLabel": "Timeline zoom",
+    "readOnlyHint": "View only — editing is disabled for guests right now.",
+    "emptyRoadmapTitle": "No milestones yet",
+    "emptyRoadmapBody": "Add a milestone to start planning dates, lanes, and dependencies.",
+    "emptyRoadmapCta": "Create first milestone",
+    "editorEmptyTitle": "Nothing selected",
+    "emptyLanes": "No lanes yet",
+    "linkedSelected": "{count} linked tasks"
   },
   "plan": {
     "title": "Plan",
