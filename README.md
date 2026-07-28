@@ -73,6 +73,13 @@ npm run docker:dev:tunnel
 รัน web + api + nats + Caddy + quick tunnel ใน Docker ด้วยคำสั่งเดียว  
 เปิดผ่าน `*.trycloudflare.com` ได้ทั้ง UI, API (`/api`), และ realtime websocket
 
+**Windows (กดใช้ในองค์กร):** ดับเบิลคลิกที่รากโปรเจกต์
+
+- `start-trycloudflare.bat` — build/start ทั้ง stack แล้วพิมพ์ Public URL
+- `stop-trycloudflare.bat` — หยุด containers ทั้งหมด
+
+หรือใช้ npm:
+
 ```bash
 npm run trycloudflare
 ```
@@ -82,7 +89,7 @@ npm run trycloudflare
 
 หมายเหตุ:
 
-- ต้องมี Docker Desktop
+- ต้องมี Docker Desktop (เปิดค้างไว้จน Ready)
 - ไม่ต้องมี Cloudflare account / tunnel token
 - URL เปลี่ยนทุกครั้งที่สร้าง tunnel ใหม่
 - API ถูก proxy ที่ path `/api`
@@ -90,11 +97,11 @@ npm run trycloudflare
 
 หยุด:
 
+- กด `Ctrl+C` ในหน้าต่างที่รันอยู่ หรือดับเบิลคลิก `stop-trycloudflare.bat`
+
 ```bash
 npm run trycloudflare:stop
 ```
-
-หรือกด `Ctrl+C` ในเทอร์มินัลที่รันอยู่
 
 ---
 
