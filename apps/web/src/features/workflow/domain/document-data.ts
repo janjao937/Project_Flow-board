@@ -6,6 +6,8 @@ export interface StickyNote {
   y: number;
   width: number;
   height: number;
+  /** Degrees clockwise. */
+  rotation?: number;
   text: string;
   color: StickyColor;
   zIndex: number;
@@ -21,6 +23,8 @@ export interface BoardShape {
   y: number;
   width: number;
   height: number;
+  /** Degrees clockwise. */
+  rotation?: number;
   stroke: string;
   fill: string;
   zIndex: number;
@@ -41,6 +45,8 @@ export interface BoardImage {
   y: number;
   width: number;
   height: number;
+  /** Degrees clockwise. */
+  rotation?: number;
   src: string;
   zIndex: number;
   groupId?: string | null;
@@ -52,6 +58,8 @@ export interface BoardFrame {
   y: number;
   width: number;
   height: number;
+  /** Degrees clockwise. */
+  rotation?: number;
   title: string;
   zIndex: number;
 }

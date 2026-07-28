@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
-type Box = { x: number; y: number; width: number; height: number };
+type Box = { x: number; y: number; width: number; height: number; rotation?: number };
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 
@@ -12,6 +12,7 @@ interface Props<T extends Box> {
   canEdit: boolean;
   canDrag?: boolean;
   canResize?: boolean;
+  canRotate?: boolean;
   /** When true, resize keeps aspect ratio unless Alt is held. */
   lockAspectRatio?: boolean;
   zoom: number;
@@ -31,6 +32,24 @@ const CORNERS: Array<{ id: ResizeCorner; className: string; cursor: string }> = 
   { id: "se", className: "bottom-0 right-0 translate-x-1/2 translate-y-1/2", cursor: "nwse-resize" },
 ];
 
+function toLocalDelta(dx: number, dy: number, rotationDeg: number) {
+  const rad = (-rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return { dx: dx * cos - dy * sin, dy: dx * sin + dy * cos };
+}
+
+function normalizeRotation(deg: number) {
+  let next = deg % 360;
+  if (next > 180) {
+    next -= 360;
+  }
+  if (next <= -180) {
+    next += 360;
+  }
+  return Math.round(next * 10) / 10;
+}
+
 function scaleBox(
   start: Box,
   corner: ResizeCorner,
@@ -39,7 +58,7 @@ function scaleBox(
   proportional: boolean,
   minWidth: number,
   minHeight: number,
-): Box {
+): Pick<Box, "x" | "y" | "width" | "height"> {
   let { x, y, width, height } = start;
   const aspect = start.width / Math.max(1, start.height);
 
@@ -94,6 +113,7 @@ export function DraggableBoardItem<T extends Box>({
   canEdit,
   canDrag = true,
   canResize = true,
+  canRotate = true,
   lockAspectRatio = false,
   zoom,
   minWidth = 48,
@@ -106,6 +126,7 @@ export function DraggableBoardItem<T extends Box>({
 }: Props<T>) {
   const [draft, setDraft] = useState(item);
   const draftRef = useRef(item);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const drag = useRef<{ ox: number; oy: number; sx: number; sy: number } | null>(null);
   const resize = useRef<{
     ox: number;
@@ -114,18 +135,26 @@ export function DraggableBoardItem<T extends Box>({
     corner: ResizeCorner;
     proportional: boolean;
   } | null>(null);
+  const rotate = useRef<{
+    startPointerAngle: number;
+    startRotation: number;
+    cx: number;
+    cy: number;
+  } | null>(null);
   const moved = useRef(false);
 
   draftRef.current = draft;
+  const rotation = draft.rotation ?? 0;
 
   useEffect(() => {
-    if (!drag.current && !resize.current) {
+    if (!drag.current && !resize.current && !rotate.current) {
       setDraft(item);
     }
   }, [item]);
 
   return (
     <div
+      ref={rootRef}
       className={className}
       style={{
         ...style,
@@ -133,13 +162,15 @@ export function DraggableBoardItem<T extends Box>({
         top: draft.y,
         width: draft.width,
         height: draft.height,
+        transform: `rotate(${rotation}deg)`,
+        transformOrigin: "center center",
         cursor: canEdit && canDrag ? "grab" : undefined,
       }}
       onPointerDown={(event) => {
         if (!canEdit) {
           return;
         }
-        if ((event.target as HTMLElement).dataset.resize === "1") {
+        if ((event.target as HTMLElement).dataset.handle) {
           return;
         }
         if ((event.target as HTMLElement).closest("input,textarea,button")) {
@@ -170,60 +201,108 @@ export function DraggableBoardItem<T extends Box>({
         }
         const activeResize = resize.current;
         if (activeResize) {
-          const dx = (event.clientX - activeResize.ox) / zoom;
-          const dy = (event.clientY - activeResize.oy) / zoom;
+          const screenDx = (event.clientX - activeResize.ox) / zoom;
+          const screenDy = (event.clientY - activeResize.oy) / zoom;
+          const local = toLocalDelta(screenDx, screenDy, activeResize.start.rotation ?? 0);
           moved.current = true;
           const next = scaleBox(
             activeResize.start,
             activeResize.corner,
-            dx,
-            dy,
+            local.dx,
+            local.dy,
             activeResize.proportional || event.shiftKey || (lockAspectRatio && !event.altKey),
             minWidth,
             minHeight,
           );
           setDraft((prev) => ({ ...prev, ...next }));
         }
+        const activeRotate = rotate.current;
+        if (activeRotate) {
+          const angle =
+            (Math.atan2(event.clientY - activeRotate.cy, event.clientX - activeRotate.cx) * 180) /
+            Math.PI;
+          let nextRotation = activeRotate.startRotation + (angle - activeRotate.startPointerAngle);
+          if (event.shiftKey) {
+            nextRotation = Math.round(nextRotation / 15) * 15;
+          }
+          moved.current = true;
+          setDraft((prev) => ({ ...prev, rotation: normalizeRotation(nextRotation) }));
+        }
       }}
       onPointerUp={() => {
-        if ((drag.current || resize.current) && moved.current) {
+        if ((drag.current || resize.current || rotate.current) && moved.current) {
           onChange(draftRef.current);
         }
         drag.current = null;
         resize.current = null;
+        rotate.current = null;
         moved.current = false;
       }}
       onDoubleClick={(event) => event.stopPropagation()}
     >
       {children}
-      {canEdit && canResize && selected ? (
+      {canEdit && selected ? (
         <>
-          {CORNERS.map((corner) => (
-            <div
-              key={corner.id}
-              data-resize="1"
-              className={`bg-background absolute z-20 h-3 w-3 rounded-sm border-2 border-teal-700 ${corner.className}`}
-              style={{ cursor: corner.cursor }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                onSelect(false);
-                resize.current = {
-                  ox: event.clientX,
-                  oy: event.clientY,
-                  start: {
-                    x: draft.x,
-                    y: draft.y,
-                    width: draft.width,
-                    height: draft.height,
-                  },
-                  corner: corner.id,
-                  proportional: lockAspectRatio ? !event.altKey : event.shiftKey,
-                };
-                moved.current = false;
-                (event.currentTarget.parentElement as HTMLElement | null)?.setPointerCapture(event.pointerId);
-              }}
-            />
-          ))}
+          {canResize
+            ? CORNERS.map((corner) => (
+                <div
+                  key={corner.id}
+                  data-handle="resize"
+                  className={`bg-background absolute z-20 h-3 w-3 rounded-sm border-2 border-teal-700 ${corner.className}`}
+                  style={{ cursor: corner.cursor }}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    onSelect(false);
+                    resize.current = {
+                      ox: event.clientX,
+                      oy: event.clientY,
+                      start: {
+                        x: draft.x,
+                        y: draft.y,
+                        width: draft.width,
+                        height: draft.height,
+                        rotation,
+                      },
+                      corner: corner.id,
+                      proportional: lockAspectRatio ? !event.altKey : event.shiftKey,
+                    };
+                    moved.current = false;
+                    rootRef.current?.setPointerCapture(event.pointerId);
+                  }}
+                />
+              ))
+            : null}
+          {canRotate ? (
+            <>
+              <div
+                className="pointer-events-none absolute left-1/2 top-0 z-10 h-5 w-px -translate-x-1/2 -translate-y-full bg-teal-700"
+                aria-hidden
+              />
+              <div
+                data-handle="rotate"
+                title="Rotate (Shift: 15°)"
+                className="bg-background absolute left-1/2 top-0 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-[calc(100%+14px)] cursor-grab rounded-full border-2 border-teal-700"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  onSelect(false);
+                  const rect = rootRef.current?.getBoundingClientRect();
+                  if (!rect) {
+                    return;
+                  }
+                  const cx = rect.left + rect.width / 2;
+                  const cy = rect.top + rect.height / 2;
+                  rotate.current = {
+                    startPointerAngle: (Math.atan2(event.clientY - cy, event.clientX - cx) * 180) / Math.PI,
+                    startRotation: rotation,
+                    cx,
+                    cy,
+                  };
+                  moved.current = false;
+                  rootRef.current?.setPointerCapture(event.pointerId);
+                }}
+              />
+            </>
+          ) : null}
         </>
       ) : null}
     </div>

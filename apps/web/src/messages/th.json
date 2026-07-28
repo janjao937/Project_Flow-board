@@ -81,6 +81,8 @@
     "connectorPickSource": "เชื่อม: คลิกรายการแรก",
     "connectorPickTarget": "เชื่อม: คลิกรายการที่สอง",
     "connectorCancel": "ยกเลิก",
+    "connectorDisconnectHint": "คลิกคู่เดิมซ้ำเพื่อเลิกเชื่อม หรือเลือกเส้นแล้วกด Delete / คลิก ×",
+    "disconnect": "เลิกเชื่อม",
     "readOnly": "ดูอย่างเดียว — ตอนนี้ guest แก้ไม่ได้"
   },
   "tasks": {

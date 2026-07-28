@@ -164,6 +164,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         y: snapToGrid(y, board.gridEnabled),
         width: 180,
         height: 160,
+        rotation: 0,
         text: "",
         color: STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)] ?? "butter",
         zIndex: nextZ(),
@@ -189,6 +190,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         y: snapToGrid(y, board.gridEnabled),
         width: kind === "arrow" ? 180 : 140,
         height: kind === "arrow" ? 72 : 100,
+        rotation: 0,
         stroke: "#0f766e",
         fill: kind === "arrow" ? "rgba(15,118,110,0.85)" : "rgba(15,118,110,0.12)",
         zIndex: nextZ(),
@@ -215,7 +217,16 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             (item.fromId === fromId && item.toId === toId) || (item.fromId === toId && item.toId === fromId),
         );
         if (exists) {
-          return next;
+          return {
+            ...next,
+            connectors: next.connectors.filter(
+              (item) =>
+                !(
+                  (item.fromId === fromId && item.toId === toId) ||
+                  (item.fromId === toId && item.toId === fromId)
+                ),
+            ),
+          };
         }
         return {
           ...next,
@@ -234,6 +245,23 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       setConnectorFrom(null);
       setTool("select");
       setSelectedIds([fromId, toId]);
+    },
+    [canEdit, pageId, updateBoard],
+  );
+
+  const removeConnector = useCallback(
+    (connectorId: string) => {
+      if (!canEdit) {
+        return;
+      }
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return {
+          ...next,
+          connectors: next.connectors.filter((item) => item.id !== connectorId),
+        };
+      });
+      setSelectedIds((prev) => prev.filter((id) => id !== connectorId));
     },
     [canEdit, pageId, updateBoard],
   );
@@ -268,6 +296,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         y: snapToGrid(y, board.gridEnabled),
         width: 420,
         height: 280,
+        rotation: 0,
         title: t("frame"),
         zIndex: 0,
       };
@@ -474,7 +503,10 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             frames: next.frames.filter((item) => !selectedIds.includes(item.id)),
             strokes: next.strokes.filter((item) => !selectedIds.includes(item.id)),
             connectors: next.connectors.filter(
-              (item) => !selectedIds.includes(item.fromId) && !selectedIds.includes(item.toId),
+              (item) =>
+                !selectedIds.includes(item.id) &&
+                !selectedIds.includes(item.fromId) &&
+                !selectedIds.includes(item.toId),
             ),
             groups: next.groups
               .map((group) => ({
@@ -684,6 +716,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       {tool === "connector" && canEdit ? (
         <div className="bg-teal-700/10 text-teal-950 dark:text-teal-100 shrink-0 px-3 py-1.5 text-center text-xs">
           {connectorFrom ? t("connectorPickTarget") : t("connectorPickSource")}
+          <span className="text-muted-foreground ml-2">{t("connectorDisconnectHint")}</span>
           {connectorFrom ? (
             <Button
               size="sm"
@@ -806,6 +839,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                         y: snapToGrid(world.y - 60, next.gridEnabled),
                         width: 160,
                         height: 120,
+                        rotation: 0,
                         src,
                         zIndex: next.stickies.length + next.shapes.length + next.images.length + 1,
                       },
@@ -862,6 +896,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canEdit={canEdit && (tool === "select" || tool === "connector")}
               canDrag={tool === "select"}
               canResize={tool === "select"}
+              canRotate={tool === "select"}
               zoom={camera.zoom}
               minWidth={160}
               minHeight={120}
@@ -893,6 +928,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             y: snapToGrid(nextFrame.y, next.gridEnabled),
                             width: Math.max(160, nextFrame.width),
                             height: Math.max(120, nextFrame.height),
+                            rotation: nextFrame.rotation ?? 0,
                           }
                         : item,
                     ),
@@ -923,37 +959,6 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             width={Math.max(2400, contentBounds.maxX + 200)}
             height={Math.max(1600, contentBounds.maxY + 200)}
           >
-            {board.connectors.map((connector) => {
-              const from =
-                board.stickies.find((item) => item.id === connector.fromId) ??
-                board.shapes.find((item) => item.id === connector.fromId) ??
-                board.frames.find((item) => item.id === connector.fromId) ??
-                board.images.find((item) => item.id === connector.fromId);
-              const to =
-                board.stickies.find((item) => item.id === connector.toId) ??
-                board.shapes.find((item) => item.id === connector.toId) ??
-                board.frames.find((item) => item.id === connector.toId) ??
-                board.images.find((item) => item.id === connector.toId);
-              if (!from || !to) {
-                return null;
-              }
-              const x1 = from.x + from.width / 2;
-              const y1 = from.y + from.height / 2;
-              const x2 = to.x + to.width / 2;
-              const y2 = to.y + to.height / 2;
-              return (
-                <line
-                  key={connector.id}
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke="#0f766e"
-                  strokeWidth={2.5}
-                  markerEnd="url(#board-arrowhead)"
-                />
-              );
-            })}
             {[...board.strokes, ...(draftStroke ? [draftStroke] : [])].map((stroke) => (
               <polyline
                 key={stroke.id}
@@ -971,11 +976,6 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 style={{ pointerEvents: "stroke" }}
               />
             ))}
-            <defs>
-              <marker id="board-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#0f766e" />
-              </marker>
-            </defs>
           </svg>
 
           {board.shapes.map((shape) => (
@@ -986,6 +986,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canEdit={canEdit && (tool === "select" || tool === "connector")}
               canDrag={tool === "select"}
               canResize={tool === "select"}
+              canRotate={tool === "select"}
               zoom={camera.zoom}
               minWidth={shape.kind === "arrow" ? 80 : 40}
               minHeight={shape.kind === "arrow" ? 40 : 40}
@@ -1020,6 +1021,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             y: snapToGrid(nextShape.y, next.gridEnabled),
                             width: Math.max(40, nextShape.width),
                             height: Math.max(40, nextShape.height),
+                            rotation: nextShape.rotation ?? 0,
                           }
                         : item,
                     ),
@@ -1039,6 +1041,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canEdit={canEdit && (tool === "select" || tool === "connector")}
               canDrag={tool === "select"}
               canResize={tool === "select"}
+              canRotate={tool === "select"}
               lockAspectRatio
               zoom={camera.zoom}
               minWidth={48}
@@ -1074,6 +1077,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             y: snapToGrid(nextImage.y, next.gridEnabled),
                             width: Math.max(48, nextImage.width),
                             height: Math.max(48, nextImage.height),
+                            rotation: nextImage.rotation ?? 0,
                           }
                         : item,
                     ),
@@ -1093,6 +1097,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canEdit={canEdit && (tool === "select" || tool === "connector")}
               canDrag={tool === "select"}
               canResize={tool === "select"}
+              canRotate={tool === "select"}
               colorClass={COLOR_CLASS[sticky.color] ?? COLOR_CLASS.butter!}
               zoom={camera.zoom}
               onSelect={(additive) => {
@@ -1124,6 +1129,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             y: snapToGrid(nextSticky.y, next.gridEnabled),
                             width: Math.max(120, nextSticky.width),
                             height: Math.max(100, nextSticky.height),
+                            rotation: nextSticky.rotation ?? 0,
                           }
                         : item,
                     ),
@@ -1132,6 +1138,94 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               }}
             />
           ))}
+
+          <svg
+            className="absolute left-0 top-0 z-40 overflow-visible"
+            width={Math.max(2400, contentBounds.maxX + 200)}
+            height={Math.max(1600, contentBounds.maxY + 200)}
+            style={{ pointerEvents: "none" }}
+          >
+            <defs>
+              <marker id="board-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#0f766e" />
+              </marker>
+            </defs>
+            {board.connectors.map((connector) => {
+              const from =
+                board.stickies.find((item) => item.id === connector.fromId) ??
+                board.shapes.find((item) => item.id === connector.fromId) ??
+                board.frames.find((item) => item.id === connector.fromId) ??
+                board.images.find((item) => item.id === connector.fromId);
+              const to =
+                board.stickies.find((item) => item.id === connector.toId) ??
+                board.shapes.find((item) => item.id === connector.toId) ??
+                board.frames.find((item) => item.id === connector.toId) ??
+                board.images.find((item) => item.id === connector.toId);
+              if (!from || !to) {
+                return null;
+              }
+              const x1 = from.x + from.width / 2;
+              const y1 = from.y + from.height / 2;
+              const x2 = to.x + to.width / 2;
+              const y2 = to.y + to.height / 2;
+              const midX = (x1 + x2) / 2;
+              const midY = (y1 + y2) / 2;
+              const selected = selectedIds.includes(connector.id);
+              return (
+                <g key={connector.id}>
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="transparent"
+                    strokeWidth={18}
+                    style={{ pointerEvents: "stroke", cursor: canEdit ? "pointer" : "default" }}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      if (tool === "connector") {
+                        return;
+                      }
+                      setSelectedIds((prev) =>
+                        event.shiftKey
+                          ? prev.includes(connector.id)
+                            ? prev.filter((id) => id !== connector.id)
+                            : [...prev, connector.id]
+                          : [connector.id],
+                      );
+                    }}
+                  />
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={selected ? "#0d9488" : "#0f766e"}
+                    strokeWidth={selected ? 3.5 : 2.5}
+                    markerEnd="url(#board-arrowhead)"
+                  />
+                  {selected && canEdit && tool === "select" ? (
+                    <g
+                      style={{ pointerEvents: "auto", cursor: "pointer" }}
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        removeConnector(connector.id);
+                      }}
+                    >
+                      <title>{t("disconnect")}</title>
+                      <circle cx={midX} cy={midY} r={11} fill="#fff" stroke="#0f766e" strokeWidth={2} />
+                      <path
+                        d={`M ${midX - 4} ${midY - 4} L ${midX + 4} ${midY + 4} M ${midX + 4} ${midY - 4} L ${midX - 4} ${midY + 4}`}
+                        stroke="#0f766e"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  ) : null}
+                </g>
+              );
+            })}
+          </svg>
 
           {participants
             .filter((participant) => participant.cursor && participant.pageId === pageId)

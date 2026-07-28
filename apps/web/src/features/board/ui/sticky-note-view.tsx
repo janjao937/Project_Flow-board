@@ -10,6 +10,7 @@ interface Props {
   canEdit: boolean;
   canDrag?: boolean;
   canResize?: boolean;
+  canRotate?: boolean;
   colorClass: string;
   zoom: number;
   onSelect: (additive: boolean) => void;
@@ -22,6 +23,7 @@ export function StickyNoteView({
   canEdit,
   canDrag = true,
   canResize = true,
+  canRotate = true,
   colorClass,
   zoom,
   onSelect,
@@ -42,6 +44,7 @@ export function StickyNoteView({
       canEdit={canEdit}
       canDrag={canDrag && !editing}
       canResize={canResize && !editing}
+      canRotate={canRotate && !editing}
       zoom={zoom}
       minWidth={120}
       minHeight={100}

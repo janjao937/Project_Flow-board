@@ -81,6 +81,8 @@
     "connectorPickSource": "Connect: click the first item",
     "connectorPickTarget": "Connect: click the second item",
     "connectorCancel": "Cancel",
+    "connectorDisconnectHint": "Same pair again removes the link. Or select a line and press Delete / click ×.",
+    "disconnect": "Disconnect",
     "readOnly": "View only — guests cannot edit right now"
   },
   "tasks": {
