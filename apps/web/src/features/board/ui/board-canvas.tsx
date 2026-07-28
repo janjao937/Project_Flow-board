@@ -67,6 +67,44 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${[clamp(r), clamp(g), clamp(b)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function ShapeVisual({ shape }: { shape: BoardShape }) {
+  if (shape.kind === "arrow") {
+    return (
+      <svg className="h-full w-full" viewBox="0 0 160 72" preserveAspectRatio="none" aria-hidden>
+        <polygon
+          points="4,22 100,22 100,6 156,36 100,66 100,50 4,50"
+          fill={shape.fill}
+          stroke={shape.stroke}
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  if (shape.kind === "triangle") {
+    return (
+      <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+        <polygon points="50,6 94,94 6,94" fill={shape.fill} stroke={shape.stroke} strokeWidth="3" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (shape.kind === "ellipse") {
+    return (
+      <div
+        className="h-full w-full rounded-full border-[3px]"
+        style={{ borderColor: shape.stroke, background: shape.fill }}
+      />
+    );
+  }
+  return (
+    <div className="h-full w-full rounded-lg border-[3px]" style={{ borderColor: shape.stroke, background: shape.fill }} />
+  );
+}
+
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 1.15;
+
 export function BoardCanvas({ pageId }: { pageId: string }) {
   const t = useTranslations("board");
   const board = useWorkflowStore((s) => s.data?.boards[pageId] ?? EMPTY_BOARD);
@@ -149,10 +187,10 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         kind,
         x: snapToGrid(x, board.gridEnabled),
         y: snapToGrid(y, board.gridEnabled),
-        width: 140,
-        height: 100,
+        width: kind === "arrow" ? 180 : 140,
+        height: kind === "arrow" ? 72 : 100,
         stroke: "#0f766e",
-        fill: "rgba(15,118,110,0.12)",
+        fill: kind === "arrow" ? "rgba(15,118,110,0.85)" : "rgba(15,118,110,0.12)",
         zIndex: nextZ(),
       };
       updateBoard(pageId, (current) => {
@@ -164,6 +202,60 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
     },
     [board.gridEnabled, canEdit, pageId, updateBoard],
   );
+
+  const connectItems = useCallback(
+    (fromId: string, toId: string) => {
+      if (!canEdit || fromId === toId) {
+        return;
+      }
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        const exists = next.connectors.some(
+          (item) =>
+            (item.fromId === fromId && item.toId === toId) || (item.fromId === toId && item.toId === fromId),
+        );
+        if (exists) {
+          return next;
+        }
+        return {
+          ...next,
+          connectors: [
+            ...next.connectors,
+            {
+              id: crypto.randomUUID(),
+              fromId,
+              toId,
+              fromAnchor: "e",
+              toAnchor: "w",
+            },
+          ],
+        };
+      });
+      setConnectorFrom(null);
+      setTool("select");
+      setSelectedIds([fromId, toId]);
+    },
+    [canEdit, pageId, updateBoard],
+  );
+
+  const handleConnectSelect = useCallback(
+    (targetId: string) => {
+      if (!connectorFrom) {
+        setConnectorFrom(targetId);
+        setSelectedIds([targetId]);
+        return;
+      }
+      connectItems(connectorFrom, targetId);
+    },
+    [connectItems, connectorFrom],
+  );
+
+  const setZoom = useCallback((nextZoom: number) => {
+    setCamera((prev) => ({
+      ...prev,
+      zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom)),
+    }));
+  }, []);
 
   const addFrame = useCallback(
     (x: number, y: number) => {
@@ -431,11 +523,42 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             size="sm"
             variant={tool === id ? "default" : "ghost"}
             disabled={!canEdit && id !== "select" && id !== "pan"}
-            onClick={() => setTool(id)}
+            onClick={() => {
+              setTool(id);
+              if (id !== "connector") {
+                setConnectorFrom(null);
+              }
+            }}
           >
             {label}
           </Button>
         ))}
+        <div className="border-border/60 ml-1 flex items-center gap-0.5 rounded-lg border p-0.5" role="group" aria-label={t("zoomLabel")}>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={t("zoomOut")}
+            onClick={() => setZoom(camera.zoom / ZOOM_STEP)}
+          >
+            -
+          </Button>
+          <button
+            type="button"
+            className="text-muted-foreground min-w-14 px-1 text-center text-xs tabular-nums"
+            onClick={() => setZoom(1)}
+            title={t("zoomReset")}
+          >
+            {Math.round(camera.zoom * 100)}%
+          </button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={t("zoomIn")}
+            onClick={() => setZoom(camera.zoom * ZOOM_STEP)}
+          >
+            +
+          </Button>
+        </div>
         <Button
           size="sm"
           variant={board.gridEnabled ? "default" : "ghost"}
@@ -558,6 +681,25 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         </div>
       ) : null}
 
+      {tool === "connector" && canEdit ? (
+        <div className="bg-teal-700/10 text-teal-950 dark:text-teal-100 shrink-0 px-3 py-1.5 text-center text-xs">
+          {connectorFrom ? t("connectorPickTarget") : t("connectorPickSource")}
+          {connectorFrom ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-2 h-6 px-2"
+              onClick={() => {
+                setConnectorFrom(null);
+                setSelectedIds([]);
+              }}
+            >
+              {t("connectorCancel")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       <div
         ref={viewportRef}
         className={`board-surface relative min-h-0 flex-1 touch-none overflow-hidden ${board.gridEnabled ? "board-grid" : ""}`}
@@ -566,7 +708,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           const factor = event.deltaY > 0 ? 0.92 : 1.08;
           setCamera((prev) => ({
             ...prev,
-            zoom: Math.min(2.5, Math.max(0.35, prev.zoom * factor)),
+            zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * factor)),
           }));
         }}
         onPointerDown={(event) => {
@@ -698,8 +840,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             }
             const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
             const nextZoom = Math.min(
-              2.5,
-              Math.max(0.35, pinchRef.current.zoom * (distance / pinchRef.current.distance)),
+              MAX_ZOOM,
+              Math.max(MIN_ZOOM, pinchRef.current.zoom * (distance / pinchRef.current.distance)),
             );
             setCamera((prev) => ({ ...prev, zoom: nextZoom }));
           }
@@ -716,16 +858,20 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             <DraggableBoardItem
               key={frame.id}
               item={frame}
-              selected={selectedIds.includes(frame.id)}
-              canEdit={canEdit && tool === "select"}
+              selected={selectedIds.includes(frame.id) || connectorFrom === frame.id}
+              canEdit={canEdit && (tool === "select" || tool === "connector")}
+              canDrag={tool === "select"}
+              canResize={tool === "select"}
               zoom={camera.zoom}
-              className={`absolute border-2 border-dashed border-teal-700/70 bg-teal-700/5 ${selectedIds.includes(frame.id) ? "ring-2 ring-teal-700" : ""}`}
-              style={{
-                width: frame.width,
-                height: frame.height,
-                zIndex: frame.zIndex,
-              }}
+              minWidth={160}
+              minHeight={120}
+              className={`absolute border-2 border-dashed border-teal-700/70 bg-teal-700/5 ${selectedIds.includes(frame.id) || connectorFrom === frame.id ? "ring-2 ring-teal-700" : ""}`}
+              style={{ zIndex: frame.zIndex }}
               onSelect={(additive) => {
+                if (tool === "connector") {
+                  handleConnectSelect(frame.id);
+                  return;
+                }
                 setSelectedIds((prev) =>
                   additive
                     ? prev.includes(frame.id)
@@ -734,7 +880,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                     : [frame.id],
                 );
               }}
-              onMove={(nextFrame) => {
+              onChange={(nextFrame) => {
                 updateBoard(pageId, (current) => {
                   const next = normalizeBoard(current);
                   return {
@@ -745,6 +891,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             ...item,
                             x: snapToGrid(nextFrame.x, next.gridEnabled),
                             y: snapToGrid(nextFrame.y, next.gridEnabled),
+                            width: Math.max(160, nextFrame.width),
+                            height: Math.max(120, nextFrame.height),
                           }
                         : item,
                     ),
@@ -770,14 +918,22 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             </DraggableBoardItem>
           ))}
 
-          <svg className="pointer-events-none absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1 }}>
+          <svg
+            className="pointer-events-none absolute left-0 top-0 overflow-visible"
+            width={Math.max(2400, contentBounds.maxX + 200)}
+            height={Math.max(1600, contentBounds.maxY + 200)}
+          >
             {board.connectors.map((connector) => {
               const from =
                 board.stickies.find((item) => item.id === connector.fromId) ??
-                board.shapes.find((item) => item.id === connector.fromId);
+                board.shapes.find((item) => item.id === connector.fromId) ??
+                board.frames.find((item) => item.id === connector.fromId) ??
+                board.images.find((item) => item.id === connector.fromId);
               const to =
                 board.stickies.find((item) => item.id === connector.toId) ??
-                board.shapes.find((item) => item.id === connector.toId);
+                board.shapes.find((item) => item.id === connector.toId) ??
+                board.frames.find((item) => item.id === connector.toId) ??
+                board.images.find((item) => item.id === connector.toId);
               if (!from || !to) {
                 return null;
               }
@@ -793,8 +949,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                   x2={x2}
                   y2={y2}
                   stroke="#0f766e"
-                  strokeWidth={2}
-                  markerEnd="url(#arrowhead)"
+                  strokeWidth={2.5}
+                  markerEnd="url(#board-arrowhead)"
                 />
               );
             })}
@@ -816,8 +972,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               />
             ))}
             <defs>
-              <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <polygon points="0 0, 6 3, 0 6" fill="#0f766e" />
+              <marker id="board-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#0f766e" />
               </marker>
             </defs>
           </svg>
@@ -826,44 +982,18 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             <DraggableBoardItem
               key={shape.id}
               item={shape}
-              selected={selectedIds.includes(shape.id)}
+              selected={selectedIds.includes(shape.id) || connectorFrom === shape.id}
               canEdit={canEdit && (tool === "select" || tool === "connector")}
               canDrag={tool === "select"}
+              canResize={tool === "select"}
               zoom={camera.zoom}
-              className={`absolute border-2 ${selectedIds.includes(shape.id) ? "ring-2 ring-teal-700" : ""}`}
-              style={{
-                width: shape.width,
-                height: shape.height,
-                borderColor: shape.stroke,
-                background: shape.fill,
-                borderRadius: shape.kind === "ellipse" ? "9999px" : shape.kind === "triangle" ? 0 : 8,
-                clipPath: shape.kind === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" : undefined,
-                zIndex: shape.zIndex,
-              }}
+              minWidth={shape.kind === "arrow" ? 80 : 40}
+              minHeight={shape.kind === "arrow" ? 40 : 40}
+              className={`absolute ${selectedIds.includes(shape.id) || connectorFrom === shape.id ? "ring-2 ring-teal-700" : ""}`}
+              style={{ zIndex: shape.zIndex }}
               onSelect={(additive) => {
                 if (tool === "connector") {
-                  if (!connectorFrom) {
-                    setConnectorFrom(shape.id);
-                  } else if (connectorFrom !== shape.id) {
-                    updateBoard(pageId, (current) => {
-                      const next = normalizeBoard(current);
-                      return {
-                        ...next,
-                        connectors: [
-                          ...next.connectors,
-                          {
-                            id: crypto.randomUUID(),
-                            fromId: connectorFrom,
-                            toId: shape.id,
-                            fromAnchor: "e",
-                            toAnchor: "w",
-                          },
-                        ],
-                      };
-                    });
-                    setConnectorFrom(null);
-                    setTool("select");
-                  }
+                  handleConnectSelect(shape.id);
                   return;
                 }
                 setSelectedIds((prev) =>
@@ -874,7 +1004,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                     : [shape.id],
                 );
               }}
-              onMove={(nextShape) => {
+              onChange={(nextShape) => {
                 if (tool !== "select") {
                   return;
                 }
@@ -888,6 +1018,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             ...item,
                             x: snapToGrid(nextShape.x, next.gridEnabled),
                             y: snapToGrid(nextShape.y, next.gridEnabled),
+                            width: Math.max(40, nextShape.width),
+                            height: Math.max(40, nextShape.height),
                           }
                         : item,
                     ),
@@ -895,7 +1027,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 });
               }}
             >
-              <span className="sr-only">{shape.kind}</span>
+              <ShapeVisual shape={shape} />
             </DraggableBoardItem>
           ))}
 
@@ -903,18 +1035,24 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             <DraggableBoardItem
               key={image.id}
               item={image}
-              selected={selectedIds.includes(image.id)}
-              canEdit={canEdit && tool === "select"}
+              selected={selectedIds.includes(image.id) || connectorFrom === image.id}
+              canEdit={canEdit && (tool === "select" || tool === "connector")}
               canDrag={tool === "select"}
+              canResize={tool === "select"}
+              lockAspectRatio
               zoom={camera.zoom}
-              className={`absolute bg-cover bg-center ${selectedIds.includes(image.id) ? "ring-2 ring-teal-700" : ""}`}
+              minWidth={48}
+              minHeight={48}
+              className={`absolute bg-cover bg-center ${selectedIds.includes(image.id) || connectorFrom === image.id ? "ring-2 ring-teal-700" : ""}`}
               style={{
-                width: image.width,
-                height: image.height,
                 zIndex: image.zIndex,
                 backgroundImage: `url(${image.src})`,
               }}
               onSelect={(additive) => {
+                if (tool === "connector") {
+                  handleConnectSelect(image.id);
+                  return;
+                }
                 setSelectedIds((prev) =>
                   additive
                     ? prev.includes(image.id)
@@ -923,7 +1061,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                     : [image.id],
                 );
               }}
-              onMove={(nextImage) => {
+              onChange={(nextImage) => {
                 updateBoard(pageId, (current) => {
                   const next = normalizeBoard(current);
                   return {
@@ -934,6 +1072,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             ...item,
                             x: snapToGrid(nextImage.x, next.gridEnabled),
                             y: snapToGrid(nextImage.y, next.gridEnabled),
+                            width: Math.max(48, nextImage.width),
+                            height: Math.max(48, nextImage.height),
                           }
                         : item,
                     ),
@@ -949,35 +1089,15 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             <StickyNoteView
               key={sticky.id}
               sticky={sticky}
-              selected={selectedIds.includes(sticky.id)}
+              selected={selectedIds.includes(sticky.id) || connectorFrom === sticky.id}
               canEdit={canEdit && (tool === "select" || tool === "connector")}
               canDrag={tool === "select"}
+              canResize={tool === "select"}
               colorClass={COLOR_CLASS[sticky.color] ?? COLOR_CLASS.butter!}
               zoom={camera.zoom}
               onSelect={(additive) => {
                 if (tool === "connector") {
-                  if (!connectorFrom) {
-                    setConnectorFrom(sticky.id);
-                  } else if (connectorFrom !== sticky.id) {
-                    updateBoard(pageId, (current) => {
-                      const next = normalizeBoard(current);
-                      return {
-                        ...next,
-                        connectors: [
-                          ...next.connectors,
-                          {
-                            id: crypto.randomUUID(),
-                            fromId: connectorFrom,
-                            toId: sticky.id,
-                            fromAnchor: "e",
-                            toAnchor: "w",
-                          },
-                        ],
-                      };
-                    });
-                    setConnectorFrom(null);
-                    setTool("select");
-                  }
+                  handleConnectSelect(sticky.id);
                   return;
                 }
                 setSelectedIds((prev) =>
@@ -1002,6 +1122,8 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                             ...nextSticky,
                             x: snapToGrid(nextSticky.x, next.gridEnabled),
                             y: snapToGrid(nextSticky.y, next.gridEnabled),
+                            width: Math.max(120, nextSticky.width),
+                            height: Math.max(100, nextSticky.height),
                           }
                         : item,
                     ),

@@ -74,6 +74,13 @@
     "ungroup": "Ungroup",
     "exportPng": "PNG",
     "exportPdf": "PDF",
+    "zoomLabel": "Canvas zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Reset zoom to 100%",
+    "connectorPickSource": "Connect: click the first item",
+    "connectorPickTarget": "Connect: click the second item",
+    "connectorCancel": "Cancel",
     "readOnly": "View only — guests cannot edit right now"
   },
   "tasks": {

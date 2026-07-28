@@ -74,6 +74,13 @@
     "ungroup": "ยกเลิกกลุ่ม",
     "exportPng": "PNG",
     "exportPdf": "PDF",
+    "zoomLabel": "ขยายกระดาน",
+    "zoomIn": "ซูมเข้า",
+    "zoomOut": "ซูมออก",
+    "zoomReset": "รีเซ็ตซูมเป็น 100%",
+    "connectorPickSource": "เชื่อม: คลิกรายการแรก",
+    "connectorPickTarget": "เชื่อม: คลิกรายการที่สอง",
+    "connectorCancel": "ยกเลิก",
     "readOnly": "ดูอย่างเดียว — ตอนนี้ guest แก้ไม่ได้"
   },
   "tasks": {
