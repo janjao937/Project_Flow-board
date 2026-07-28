@@ -15,6 +15,8 @@ interface Props<T extends Box> {
   canRotate?: boolean;
   /** When true, resize keeps aspect ratio unless Alt is held. */
   lockAspectRatio?: boolean;
+  /** Live multi-select / group drag offset in world units. */
+  dragOffset?: { dx: number; dy: number } | null;
   zoom: number;
   minWidth?: number;
   minHeight?: number;
@@ -22,6 +24,10 @@ interface Props<T extends Box> {
   style?: CSSProperties;
   onSelect: (additive: boolean) => void;
   onChange: (next: T) => void;
+  /** Called while dragging; parent can move the whole selection. */
+  onDragMove?: (dx: number, dy: number) => void;
+  /** Called when a drag ends; parent should commit selection move. */
+  onDragEnd?: (dx: number, dy: number) => void;
   children: ReactNode;
 }
 
@@ -115,6 +121,7 @@ export function DraggableBoardItem<T extends Box>({
   canResize = true,
   canRotate = true,
   lockAspectRatio = false,
+  dragOffset = null,
   zoom,
   minWidth = 48,
   minHeight = 40,
@@ -122,12 +129,14 @@ export function DraggableBoardItem<T extends Box>({
   style,
   onSelect,
   onChange,
+  onDragMove,
+  onDragEnd,
   children,
 }: Props<T>) {
   const [draft, setDraft] = useState(item);
   const draftRef = useRef(item);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const drag = useRef<{ ox: number; oy: number; sx: number; sy: number } | null>(null);
+  const drag = useRef<{ ox: number; oy: number } | null>(null);
   const resize = useRef<{
     ox: number;
     oy: number;
@@ -142,9 +151,12 @@ export function DraggableBoardItem<T extends Box>({
     cy: number;
   } | null>(null);
   const moved = useRef(false);
+  const lastDelta = useRef({ dx: 0, dy: 0 });
 
   draftRef.current = draft;
   const rotation = draft.rotation ?? 0;
+  const offsetX = dragOffset?.dx ?? 0;
+  const offsetY = dragOffset?.dy ?? 0;
 
   useEffect(() => {
     if (!drag.current && !resize.current && !rotate.current) {
@@ -158,8 +170,8 @@ export function DraggableBoardItem<T extends Box>({
       className={className}
       style={{
         ...style,
-        left: draft.x,
-        top: draft.y,
+        left: draft.x + offsetX,
+        top: draft.y + offsetY,
         width: draft.width,
         height: draft.height,
         transform: `rotate(${rotation}deg)`,
@@ -183,7 +195,8 @@ export function DraggableBoardItem<T extends Box>({
         if (!canDrag) {
           return;
         }
-        drag.current = { ox: event.clientX, oy: event.clientY, sx: draft.x, sy: draft.y };
+        drag.current = { ox: event.clientX, oy: event.clientY };
+        lastDelta.current = { dx: 0, dy: 0 };
         moved.current = false;
         (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
       }}
@@ -195,9 +208,12 @@ export function DraggableBoardItem<T extends Box>({
           if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
             moved.current = true;
           }
-          const nextX = activeDrag.sx + dx;
-          const nextY = activeDrag.sy + dy;
-          setDraft((prev) => ({ ...prev, x: nextX, y: nextY }));
+          lastDelta.current = { dx, dy };
+          if (onDragMove) {
+            onDragMove(dx, dy);
+          } else {
+            setDraft((prev) => ({ ...prev, x: item.x + dx, y: item.y + dy }));
+          }
         }
         const activeResize = resize.current;
         if (activeResize) {
@@ -230,13 +246,23 @@ export function DraggableBoardItem<T extends Box>({
         }
       }}
       onPointerUp={() => {
-        if ((drag.current || resize.current || rotate.current) && moved.current) {
-          onChange(draftRef.current);
+        if (moved.current) {
+          if (drag.current) {
+            const { dx, dy } = lastDelta.current;
+            if (onDragEnd) {
+              onDragEnd(dx, dy);
+            } else {
+              onChange(draftRef.current);
+            }
+          } else if (resize.current || rotate.current) {
+            onChange(draftRef.current);
+          }
         }
         drag.current = null;
         resize.current = null;
         rotate.current = null;
         moved.current = false;
+        lastDelta.current = { dx: 0, dy: 0 };
       }}
       onDoubleClick={(event) => event.stopPropagation()}
     >

@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { StickyNote } from "@/features/workflow/domain/document-data";
+import {
+  STICKY_COLOR_HEX,
+  type StickyColor,
+  type StickyNote,
+} from "@/features/workflow/domain/document-data";
 import { DraggableBoardItem } from "./draggable-board-item";
+
+const NAMED = new Set<string>(Object.keys(STICKY_COLOR_HEX));
 
 interface Props {
   sticky: StickyNote;
@@ -11,10 +17,19 @@ interface Props {
   canDrag?: boolean;
   canResize?: boolean;
   canRotate?: boolean;
-  colorClass: string;
+  dragOffset?: { dx: number; dy: number } | null;
   zoom: number;
   onSelect: (additive: boolean) => void;
   onChange: (next: StickyNote) => void;
+  onDragMove?: (dx: number, dy: number) => void;
+  onDragEnd?: (dx: number, dy: number) => void;
+}
+
+function stickyBackground(color: string): string {
+  if (NAMED.has(color)) {
+    return STICKY_COLOR_HEX[color as StickyColor];
+  }
+  return color.startsWith("#") || color.startsWith("rgb") ? color : STICKY_COLOR_HEX.butter;
 }
 
 export function StickyNoteView({
@@ -24,10 +39,12 @@ export function StickyNoteView({
   canDrag = true,
   canResize = true,
   canRotate = true,
-  colorClass,
+  dragOffset = null,
   zoom,
   onSelect,
   onChange,
+  onDragMove,
+  onDragEnd,
 }: Props) {
   const [editing, setEditing] = useState(false);
 
@@ -45,13 +62,16 @@ export function StickyNoteView({
       canDrag={canDrag && !editing}
       canResize={canResize && !editing}
       canRotate={canRotate && !editing}
+      dragOffset={dragOffset}
       zoom={zoom}
       minWidth={120}
       minHeight={100}
-      className={`absolute flex flex-col overflow-visible rounded-md shadow-sm ${colorClass} ${selected ? "ring-2 ring-teal-700" : ""}`}
-      style={{ zIndex: sticky.zIndex }}
+      className={`absolute flex flex-col overflow-visible rounded-md shadow-sm ${selected ? "ring-2 ring-teal-700" : ""}`}
+      style={{ zIndex: sticky.zIndex, backgroundColor: stickyBackground(sticky.color) }}
       onSelect={onSelect}
       onChange={onChange}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
     >
       <div
         className="h-full w-full overflow-hidden rounded-md"

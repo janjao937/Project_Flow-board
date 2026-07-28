@@ -51,6 +51,8 @@
     "freehand": "Draw",
     "penColor": "Pen color",
     "penRgbPicker": "Custom color",
+    "objectFill": "Fill",
+    "objectStroke": "Stroke",
     "penRgb": {
       "r": "Red",
       "g": "Green",

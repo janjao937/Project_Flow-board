@@ -1,4 +1,5 @@
 import type { BoardState } from "@/features/workflow/domain/document-data";
+import { STICKY_COLOR_HEX, type StickyColor } from "@/features/workflow/domain/document-data";
 
 function boundsOf(board: BoardState) {
   const boxes = [
@@ -89,7 +90,12 @@ function paintBoard(board: BoardState, canvas: HTMLCanvasElement) {
   }
 
   for (const sticky of board.stickies) {
-    ctx.fillStyle = "#f3e2a4";
+    ctx.fillStyle =
+      sticky.color in STICKY_COLOR_HEX
+        ? STICKY_COLOR_HEX[sticky.color as StickyColor]
+        : sticky.color.startsWith("#") || sticky.color.startsWith("rgb")
+          ? sticky.color
+          : STICKY_COLOR_HEX.butter;
     ctx.fillRect(sticky.x - minX, sticky.y - minY, sticky.width, sticky.height);
     ctx.fillStyle = "#1f2937";
     ctx.font = "12px sans-serif";

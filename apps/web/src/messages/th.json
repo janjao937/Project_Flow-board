@@ -51,6 +51,8 @@
     "freehand": "วาด",
     "penColor": "สีปากกา",
     "penRgbPicker": "เลือกสีเอง",
+    "objectFill": "สีพื้น",
+    "objectStroke": "สีเส้น",
     "penRgb": {
       "r": "แดง",
       "g": "เขียว",

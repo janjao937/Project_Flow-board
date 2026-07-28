@@ -5,12 +5,14 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  STICKY_COLOR_HEX,
   STICKY_COLORS,
   snapToGrid,
   type BoardFrame,
   type BoardShape,
   type FreehandStroke,
   type ShapeKind,
+  type StickyColor,
   type StickyNote,
 } from "@/features/workflow/domain/document-data";
 import { useSessionStore } from "@/features/join/store/session-store";
@@ -23,14 +25,6 @@ import { StickyNoteView } from "./sticky-note-view";
 
 type Tool = "select" | "pan" | "sticky" | ShapeKind | "image" | "connector" | "frame" | "freehand";
 
-const COLOR_CLASS: Record<string, string> = {
-  butter: "bg-[#f3e2a4]",
-  mint: "bg-[#b8e0d2]",
-  sky: "bg-[#a9d4ef]",
-  blush: "bg-[#f0c4c0]",
-  fog: "bg-[#d9dde3]",
-};
-
 const PEN_COLORS = [
   { id: "teal", value: "#0f766e" },
   { id: "ink", value: "#1f2937" },
@@ -41,6 +35,8 @@ const PEN_COLORS = [
   { id: "rose", value: "#e11d48" },
   { id: "white", value: "#f8fafc" },
 ] as const;
+
+const STICKY_PRESETS = STICKY_COLORS.map((id) => ({ id, value: STICKY_COLOR_HEX[id] }));
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const normalized = hex.replace("#", "");
@@ -65,6 +61,114 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 function rgbToHex(r: number, g: number, b: number): string {
   const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
   return `#${[clamp(r), clamp(g), clamp(b)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function parseToRgb(color: string): { r: number; g: number; b: number } {
+  if (color in STICKY_COLOR_HEX) {
+    return hexToRgb(STICKY_COLOR_HEX[color as StickyColor]);
+  }
+  const rgba = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgba) {
+    return {
+      r: Number(rgba[1]),
+      g: Number(rgba[2]),
+      b: Number(rgba[3]),
+    };
+  }
+  if (color.startsWith("#")) {
+    return hexToRgb(color);
+  }
+  return hexToRgb("#0f766e");
+}
+
+function toPickerHex(color: string): string {
+  const rgb = parseToRgb(color);
+  return rgbToHex(rgb.r, rgb.g, rgb.b);
+}
+
+function RgbColorControls({
+  label,
+  value,
+  presets,
+  disabled,
+  onChange,
+  channelLabel,
+  pickerLabel,
+}: {
+  label: string;
+  value: string;
+  presets: ReadonlyArray<{ id: string; value: string }>;
+  disabled: boolean;
+  onChange: (hex: string) => void;
+  channelLabel: (channel: "r" | "g" | "b") => string;
+  pickerLabel: string;
+}) {
+  const hex = toPickerHex(value);
+  const rgb = parseToRgb(value);
+  return (
+    <div className="border-border/60 ml-1 flex max-w-full flex-wrap items-center gap-2 rounded-lg border px-1.5 py-1" role="group" aria-label={label}>
+      <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">{label}</span>
+      {presets.map((color) => (
+        <button
+          key={color.id}
+          type="button"
+          disabled={disabled}
+          aria-label={color.id}
+          aria-pressed={hex.toLowerCase() === color.value.toLowerCase()}
+          className={`h-6 w-6 rounded-full border-2 ${hex.toLowerCase() === color.value.toLowerCase() ? "border-foreground scale-110" : "border-transparent"}`}
+          style={{ backgroundColor: color.value }}
+          onClick={() => onChange(color.value)}
+        />
+      ))}
+      <label className="relative inline-flex h-6 w-6 cursor-pointer overflow-hidden rounded-full border border-border/80" title={pickerLabel}>
+        <span className="sr-only">{pickerLabel}</span>
+        <input
+          type="color"
+          disabled={disabled}
+          value={hex}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <span className="block h-full w-full" style={{ backgroundColor: hex }} />
+      </label>
+      <div className="flex min-w-[11rem] flex-1 flex-col gap-0.5 sm:min-w-[14rem]">
+        {(["r", "g", "b"] as const).map((channel) => {
+          const channelValue = rgb[channel];
+          return (
+            <label key={channel} className="text-muted-foreground flex items-center gap-1.5 text-[10px] uppercase tracking-wide">
+              <span className="w-3">{channel}</span>
+              <input
+                type="range"
+                min={0}
+                max={255}
+                value={channelValue}
+                disabled={disabled}
+                aria-label={channelLabel(channel)}
+                className="h-1.5 flex-1 accent-teal-700"
+                onChange={(event) => {
+                  const next = { ...rgb, [channel]: Number(event.target.value) };
+                  onChange(rgbToHex(next.r, next.g, next.b));
+                }}
+              />
+              <input
+                type="number"
+                min={0}
+                max={255}
+                value={channelValue}
+                disabled={disabled}
+                aria-label={channelLabel(channel)}
+                className="border-input bg-background h-6 w-12 rounded border px-1 text-[11px]"
+                onChange={(event) => {
+                  const next = { ...rgb, [channel]: Number(event.target.value) || 0 };
+                  onChange(rgbToHex(next.r, next.g, next.b));
+                }}
+              />
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function ShapeVisual({ shape }: { shape: BoardShape }) {
@@ -122,9 +226,26 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
   const [draftStroke, setDraftStroke] = useState<FreehandStroke | null>(null);
   const [showMinimap, setShowMinimap] = useState(true);
   const [penColor, setPenColor] = useState<string>(PEN_COLORS[0]!.value);
+  const [liveDrag, setLiveDrag] = useState<{ dx: number; dy: number } | null>(null);
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  const selectedStickies = useMemo(
+    () => board.stickies.filter((item) => selectedIds.includes(item.id)),
+    [board.stickies, selectedIds],
+  );
+  const selectedShapes = useMemo(
+    () => board.shapes.filter((item) => selectedIds.includes(item.id)),
+    [board.shapes, selectedIds],
+  );
+  const selectedStrokes = useMemo(
+    () => board.strokes.filter((item) => selectedIds.includes(item.id)),
+    [board.strokes, selectedIds],
+  );
+  const showObjectColor = canEdit && tool === "select" && (selectedStickies.length > 0 || selectedShapes.length > 0 || selectedStrokes.length > 0);
 
   const contentBounds = useMemo(() => {
     const boxes = [...board.stickies, ...board.shapes, ...board.images, ...board.frames];
@@ -266,6 +387,87 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
     [canEdit, pageId, updateBoard],
   );
 
+  const applyStickyColor = useCallback(
+    (hex: string) => {
+      if (!canEdit || selectedStickies.length === 0) {
+        return;
+      }
+      const named = (Object.entries(STICKY_COLOR_HEX) as Array<[StickyColor, string]>).find(
+        ([, value]) => value.toLowerCase() === hex.toLowerCase(),
+      )?.[0];
+      const color = named ?? hex;
+      const ids = new Set(selectedStickies.map((item) => item.id));
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return {
+          ...next,
+          stickies: next.stickies.map((item) => (ids.has(item.id) ? { ...item, color } : item)),
+        };
+      });
+    },
+    [canEdit, pageId, selectedStickies, updateBoard],
+  );
+
+  const applyShapeFill = useCallback(
+    (hex: string) => {
+      if (!canEdit || selectedShapes.length === 0) {
+        return;
+      }
+      const ids = new Set(selectedShapes.map((item) => item.id));
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return {
+          ...next,
+          shapes: next.shapes.map((item) => {
+            if (!ids.has(item.id)) {
+              return item;
+            }
+            if (item.kind === "arrow") {
+              return { ...item, fill: hex };
+            }
+            const rgb = parseToRgb(hex);
+            return { ...item, fill: `rgba(${rgb.r},${rgb.g},${rgb.b},0.18)` };
+          }),
+        };
+      });
+    },
+    [canEdit, pageId, selectedShapes, updateBoard],
+  );
+
+  const applyShapeStroke = useCallback(
+    (hex: string) => {
+      if (!canEdit || selectedShapes.length === 0) {
+        return;
+      }
+      const ids = new Set(selectedShapes.map((item) => item.id));
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return {
+          ...next,
+          shapes: next.shapes.map((item) => (ids.has(item.id) ? { ...item, stroke: hex } : item)),
+        };
+      });
+    },
+    [canEdit, pageId, selectedShapes, updateBoard],
+  );
+
+  const applyStrokeColor = useCallback(
+    (hex: string) => {
+      if (!canEdit || selectedStrokes.length === 0) {
+        return;
+      }
+      const ids = new Set(selectedStrokes.map((item) => item.id));
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return {
+          ...next,
+          strokes: next.strokes.map((item) => (ids.has(item.id) ? { ...item, color: hex } : item)),
+        };
+      });
+    },
+    [canEdit, pageId, selectedStrokes, updateBoard],
+  );
+
   const handleConnectSelect = useCallback(
     (targetId: string) => {
       if (!connectorFrom) {
@@ -381,26 +583,40 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
     if (!canEdit || selectedIds.length < 2) {
       return;
     }
+    const memberIds = selectedIds.filter((id) =>
+      [...board.stickies, ...board.shapes, ...board.images, ...board.strokes].some((item) => item.id === id),
+    );
+    if (memberIds.length < 2) {
+      return;
+    }
     const groupId = crypto.randomUUID();
+    const memberSet = new Set(memberIds);
     updateBoard(pageId, (current) => {
       const next = normalizeBoard(current);
+      const cleanedGroups = next.groups
+        .map((group) => ({
+          ...group,
+          memberIds: group.memberIds.filter((id) => !memberSet.has(id)),
+        }))
+        .filter((group) => group.memberIds.length > 1);
       return {
         ...next,
-        groups: [...next.groups, { id: groupId, memberIds: selectedIds }],
+        groups: [...cleanedGroups, { id: groupId, memberIds }],
         stickies: next.stickies.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+          memberSet.has(item.id) ? { ...item, groupId } : item,
         ),
         shapes: next.shapes.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+          memberSet.has(item.id) ? { ...item, groupId } : item,
         ),
         images: next.images.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+          memberSet.has(item.id) ? { ...item, groupId } : item,
         ),
         strokes: next.strokes.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId } : item,
+          memberSet.has(item.id) ? { ...item, groupId } : item,
         ),
       };
     });
+    setSelectedIds(memberIds);
   };
 
   const ungroupSelected = () => {
@@ -409,31 +625,142 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
     }
     updateBoard(pageId, (current) => {
       const next = normalizeBoard(current);
-      const groupIds = new Set(
-        [
-          ...next.stickies.filter((item) => selectedIds.includes(item.id)).map((item) => item.groupId),
-          ...next.shapes.filter((item) => selectedIds.includes(item.id)).map((item) => item.groupId),
-          ...next.images.filter((item) => selectedIds.includes(item.id)).map((item) => item.groupId),
-        ].filter(Boolean),
-      );
+      const groupIds = new Set<string>();
+      for (const id of selectedIds) {
+        const hit =
+          next.stickies.find((item) => item.id === id) ??
+          next.shapes.find((item) => item.id === id) ??
+          next.images.find((item) => item.id === id) ??
+          next.strokes.find((item) => item.id === id);
+        if (hit?.groupId) {
+          groupIds.add(hit.groupId);
+        }
+        const listed = next.groups.find((group) => group.memberIds.includes(id));
+        if (listed) {
+          groupIds.add(listed.id);
+        }
+      }
+      if (groupIds.size === 0) {
+        return next;
+      }
       return {
         ...next,
         groups: next.groups.filter((group) => !groupIds.has(group.id)),
         stickies: next.stickies.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+          item.groupId && groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
         ),
         shapes: next.shapes.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+          item.groupId && groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
         ),
         images: next.images.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+          item.groupId && groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
         ),
         strokes: next.strokes.map((item) =>
-          selectedIds.includes(item.id) ? { ...item, groupId: null } : item,
+          item.groupId && groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
         ),
       };
     });
   };
+
+  const getGroupMemberIds = useCallback(
+    (itemId: string) => {
+      const hit =
+        board.stickies.find((item) => item.id === itemId) ??
+        board.shapes.find((item) => item.id === itemId) ??
+        board.images.find((item) => item.id === itemId) ??
+        board.strokes.find((item) => item.id === itemId);
+      const groupId = hit?.groupId ?? board.groups.find((group) => group.memberIds.includes(itemId))?.id;
+      if (!groupId) {
+        return [itemId];
+      }
+      const fromList = board.groups.find((group) => group.id === groupId)?.memberIds;
+      if (fromList && fromList.length > 0) {
+        return [...new Set(fromList)];
+      }
+      return [
+        ...board.stickies.filter((item) => item.groupId === groupId).map((item) => item.id),
+        ...board.shapes.filter((item) => item.groupId === groupId).map((item) => item.id),
+        ...board.images.filter((item) => item.groupId === groupId).map((item) => item.id),
+        ...board.strokes.filter((item) => item.groupId === groupId).map((item) => item.id),
+      ];
+    },
+    [board.groups, board.images, board.shapes, board.stickies, board.strokes],
+  );
+
+  const selectBoardItem = useCallback(
+    (itemId: string, additive: boolean) => {
+      if (additive) {
+        setSelectedIds((prev) => {
+          const next = prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId];
+          selectedIdsRef.current = next;
+          return next;
+        });
+        return;
+      }
+      if (selectedIdsRef.current.includes(itemId)) {
+        return;
+      }
+      const next = getGroupMemberIds(itemId);
+      selectedIdsRef.current = next;
+      setSelectedIds(next);
+    },
+    [getGroupMemberIds],
+  );
+
+  const moveSelectedBy = useCallback(
+    (dx: number, dy: number) => {
+      const selected = selectedIdsRef.current;
+      if (!canEdit || (dx === 0 && dy === 0) || selected.length === 0) {
+        setLiveDrag(null);
+        return;
+      }
+      const ids = new Set(selected);
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        const snapX = (value: number) => snapToGrid(value, next.gridEnabled);
+        const snapY = (value: number) => snapToGrid(value, next.gridEnabled);
+        return {
+          ...next,
+          stickies: next.stickies.map((item) =>
+            ids.has(item.id) ? { ...item, x: snapX(item.x + dx), y: snapY(item.y + dy) } : item,
+          ),
+          shapes: next.shapes.map((item) =>
+            ids.has(item.id) ? { ...item, x: snapX(item.x + dx), y: snapY(item.y + dy) } : item,
+          ),
+          images: next.images.map((item) =>
+            ids.has(item.id) ? { ...item, x: snapX(item.x + dx), y: snapY(item.y + dy) } : item,
+          ),
+          frames: next.frames.map((item) =>
+            ids.has(item.id) ? { ...item, x: snapX(item.x + dx), y: snapY(item.y + dy) } : item,
+          ),
+          strokes: next.strokes.map((item) =>
+            ids.has(item.id)
+              ? {
+                  ...item,
+                  points: item.points.map((point) => ({
+                    x: snapX(point.x + dx),
+                    y: snapY(point.y + dy),
+                  })),
+                }
+              : item,
+          ),
+        };
+      });
+      setLiveDrag(null);
+    },
+    [canEdit, pageId, updateBoard],
+  );
+
+  const handleItemDragMove = useCallback((dx: number, dy: number) => {
+    setLiveDrag({ dx, dy });
+  }, []);
+
+  const handleItemDragEnd = useCallback(
+    (dx: number, dy: number) => {
+      moveSelectedBy(dx, dy);
+    },
+    [moveSelectedBy],
+  );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -621,7 +948,12 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         <Button size="sm" variant="ghost" disabled={!canEdit || selectedIds.length < 2} onClick={groupSelected}>
           {t("group")}
         </Button>
-        <Button size="sm" variant="ghost" disabled={!canEdit || selectedIds.length < 1} onClick={ungroupSelected}>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!canEdit || !selectedIds.some((id) => getGroupMemberIds(id).length > 1)}
+          onClick={ungroupSelected}
+        >
           {t("ungroup")}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setShowMinimap((value) => !value)}>
@@ -634,68 +966,63 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           {t("exportPdf")}
         </Button>
         {tool === "freehand" ? (
-          <div className="border-border/60 ml-1 flex max-w-full flex-wrap items-center gap-2 rounded-lg border px-1.5 py-1" role="group" aria-label={t("penColor")}>
-            {PEN_COLORS.map((color) => (
-              <button
-                key={color.id}
-                type="button"
+          <RgbColorControls
+            label={t("penColor")}
+            value={penColor}
+            presets={PEN_COLORS}
+            disabled={!canEdit}
+            onChange={setPenColor}
+            channelLabel={(channel) => t(`penRgb.${channel}`)}
+            pickerLabel={t("penRgbPicker")}
+          />
+        ) : null}
+        {showObjectColor ? (
+          <>
+            {selectedStickies.length > 0 ? (
+              <RgbColorControls
+                label={t("objectFill")}
+                value={selectedStickies[0]!.color}
+                presets={STICKY_PRESETS}
                 disabled={!canEdit}
-                aria-label={t(`penColors.${color.id}`)}
-                aria-pressed={penColor === color.value}
-                className={`h-6 w-6 rounded-full border-2 ${penColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
-                style={{ backgroundColor: color.value }}
-                onClick={() => setPenColor(color.value)}
+                onChange={applyStickyColor}
+                channelLabel={(channel) => t(`penRgb.${channel}`)}
+                pickerLabel={t("penRgbPicker")}
               />
-            ))}
-            <label className="relative inline-flex h-6 w-6 cursor-pointer overflow-hidden rounded-full border border-border/80" title={t("penRgbPicker")}>
-              <span className="sr-only">{t("penRgbPicker")}</span>
-              <input
-                type="color"
+            ) : null}
+            {selectedShapes.length > 0 ? (
+              <>
+                <RgbColorControls
+                  label={t("objectFill")}
+                  value={selectedShapes[0]!.fill}
+                  presets={PEN_COLORS}
+                  disabled={!canEdit}
+                  onChange={applyShapeFill}
+                  channelLabel={(channel) => t(`penRgb.${channel}`)}
+                  pickerLabel={t("penRgbPicker")}
+                />
+                <RgbColorControls
+                  label={t("objectStroke")}
+                  value={selectedShapes[0]!.stroke}
+                  presets={PEN_COLORS}
+                  disabled={!canEdit}
+                  onChange={applyShapeStroke}
+                  channelLabel={(channel) => t(`penRgb.${channel}`)}
+                  pickerLabel={t("penRgbPicker")}
+                />
+              </>
+            ) : null}
+            {selectedStrokes.length > 0 ? (
+              <RgbColorControls
+                label={t("objectStroke")}
+                value={selectedStrokes[0]!.color}
+                presets={PEN_COLORS}
                 disabled={!canEdit}
-                value={penColor.length === 7 ? penColor : rgbToHex(hexToRgb(penColor).r, hexToRgb(penColor).g, hexToRgb(penColor).b)}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                onChange={(event) => setPenColor(event.target.value)}
+                onChange={applyStrokeColor}
+                channelLabel={(channel) => t(`penRgb.${channel}`)}
+                pickerLabel={t("penRgbPicker")}
               />
-              <span className="block h-full w-full" style={{ backgroundColor: penColor }} />
-            </label>
-            <div className="flex min-w-[11rem] flex-1 flex-col gap-0.5 sm:min-w-[14rem]">
-              {(["r", "g", "b"] as const).map((channel) => {
-                const rgb = hexToRgb(penColor);
-                const value = rgb[channel];
-                return (
-                  <label key={channel} className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <span className="w-3">{channel}</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={255}
-                      value={value}
-                      disabled={!canEdit}
-                      aria-label={t(`penRgb.${channel}`)}
-                      className="h-1.5 flex-1 accent-teal-700"
-                      onChange={(event) => {
-                        const next = { ...rgb, [channel]: Number(event.target.value) };
-                        setPenColor(rgbToHex(next.r, next.g, next.b));
-                      }}
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      max={255}
-                      value={value}
-                      disabled={!canEdit}
-                      aria-label={t(`penRgb.${channel}`)}
-                      className="border-input bg-background h-6 w-12 rounded border px-1 text-[11px]"
-                      onChange={(event) => {
-                        const next = { ...rgb, [channel]: Number(event.target.value) || 0 };
-                        setPenColor(rgbToHex(next.r, next.g, next.b));
-                      }}
-                    />
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+            ) : null}
+          </>
         ) : null}
         <div className="ml-auto flex gap-1">
           <Button size="sm" variant="ghost" disabled={!canEdit} onClick={undo}>
@@ -897,6 +1224,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canDrag={tool === "select"}
               canResize={tool === "select"}
               canRotate={tool === "select"}
+              dragOffset={selectedIds.includes(frame.id) ? liveDrag : null}
               zoom={camera.zoom}
               minWidth={160}
               minHeight={120}
@@ -907,14 +1235,10 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                   handleConnectSelect(frame.id);
                   return;
                 }
-                setSelectedIds((prev) =>
-                  additive
-                    ? prev.includes(frame.id)
-                      ? prev.filter((id) => id !== frame.id)
-                      : [...prev, frame.id]
-                    : [frame.id],
-                );
+                selectBoardItem(frame.id, additive);
               }}
+              onDragMove={handleItemDragMove}
+              onDragEnd={handleItemDragEnd}
               onChange={(nextFrame) => {
                 updateBoard(pageId, (current) => {
                   const next = normalizeBoard(current);
@@ -967,11 +1291,17 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 strokeWidth={stroke.width}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                points={stroke.points.map((point) => `${point.x},${point.y}`).join(" ")}
+                points={stroke.points
+                  .map((point) => {
+                    const ox = selectedIds.includes(stroke.id) && liveDrag ? liveDrag.dx : 0;
+                    const oy = selectedIds.includes(stroke.id) && liveDrag ? liveDrag.dy : 0;
+                    return `${point.x + ox},${point.y + oy}`;
+                  })
+                  .join(" ")}
                 className={selectedIds.includes(stroke.id) ? "opacity-90" : undefined}
                 onPointerDown={(event) => {
                   event.stopPropagation();
-                  setSelectedIds([stroke.id]);
+                  selectBoardItem(stroke.id, event.shiftKey);
                 }}
                 style={{ pointerEvents: "stroke" }}
               />
@@ -987,6 +1317,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canDrag={tool === "select"}
               canResize={tool === "select"}
               canRotate={tool === "select"}
+              dragOffset={selectedIds.includes(shape.id) ? liveDrag : null}
               zoom={camera.zoom}
               minWidth={shape.kind === "arrow" ? 80 : 40}
               minHeight={shape.kind === "arrow" ? 40 : 40}
@@ -997,14 +1328,10 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                   handleConnectSelect(shape.id);
                   return;
                 }
-                setSelectedIds((prev) =>
-                  additive
-                    ? prev.includes(shape.id)
-                      ? prev.filter((id) => id !== shape.id)
-                      : [...prev, shape.id]
-                    : [shape.id],
-                );
+                selectBoardItem(shape.id, additive);
               }}
+              onDragMove={handleItemDragMove}
+              onDragEnd={handleItemDragEnd}
               onChange={(nextShape) => {
                 if (tool !== "select") {
                   return;
@@ -1043,6 +1370,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canResize={tool === "select"}
               canRotate={tool === "select"}
               lockAspectRatio
+              dragOffset={selectedIds.includes(image.id) ? liveDrag : null}
               zoom={camera.zoom}
               minWidth={48}
               minHeight={48}
@@ -1056,14 +1384,10 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                   handleConnectSelect(image.id);
                   return;
                 }
-                setSelectedIds((prev) =>
-                  additive
-                    ? prev.includes(image.id)
-                      ? prev.filter((id) => id !== image.id)
-                      : [...prev, image.id]
-                    : [image.id],
-                );
+                selectBoardItem(image.id, additive);
               }}
+              onDragMove={handleItemDragMove}
+              onDragEnd={handleItemDragEnd}
               onChange={(nextImage) => {
                 updateBoard(pageId, (current) => {
                   const next = normalizeBoard(current);
@@ -1098,21 +1422,17 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canDrag={tool === "select"}
               canResize={tool === "select"}
               canRotate={tool === "select"}
-              colorClass={COLOR_CLASS[sticky.color] ?? COLOR_CLASS.butter!}
+              dragOffset={selectedIds.includes(sticky.id) ? liveDrag : null}
               zoom={camera.zoom}
               onSelect={(additive) => {
                 if (tool === "connector") {
                   handleConnectSelect(sticky.id);
                   return;
                 }
-                setSelectedIds((prev) =>
-                  additive
-                    ? prev.includes(sticky.id)
-                      ? prev.filter((id) => id !== sticky.id)
-                      : [...prev, sticky.id]
-                    : [sticky.id],
-                );
+                selectBoardItem(sticky.id, additive);
               }}
+              onDragMove={handleItemDragMove}
+              onDragEnd={handleItemDragEnd}
               onChange={(nextSticky) => {
                 if (!canEdit) {
                   return;

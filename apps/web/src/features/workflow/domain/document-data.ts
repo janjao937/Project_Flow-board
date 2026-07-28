@@ -9,7 +9,8 @@ export interface StickyNote {
   /** Degrees clockwise. */
   rotation?: number;
   text: string;
-  color: StickyColor;
+  /** Named sticky palette or `#rrggbb`. */
+  color: StickyColor | string;
   zIndex: number;
   groupId?: string | null;
 }
@@ -153,6 +154,15 @@ export interface WorkflowDocumentData {
 }
 
 export const STICKY_COLORS: StickyColor[] = ["butter", "mint", "sky", "blush", "fog"];
+
+export const STICKY_COLOR_HEX: Record<StickyColor, string> = {
+  butter: "#f3e2a4",
+  mint: "#b8e0d2",
+  sky: "#a9d4ef",
+  blush: "#f0c4c0",
+  fog: "#d9dde3",
+};
+
 export const GRID_SIZE = 20;
 
 export function snapToGrid(value: number, enabled: boolean): number {
