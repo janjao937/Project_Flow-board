@@ -1,4 +1,5 @@
 import { ERROR_CODE_META, ErrorCode, type ErrorResponseBody } from "@/shared/packages/errors";
+import { resolvePublicApiBase } from "./public-url";
 
 export class ApiError extends Error {
   readonly code: ErrorCode;
@@ -23,7 +24,7 @@ export function isApiError(value: unknown): value is ApiError {
 }
 
 export async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const base = resolvePublicApiBase();
   const response = await fetch(`${base}${input}`, {
     ...init,
     headers: {

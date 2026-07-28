@@ -17,7 +17,7 @@ import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { alignItems, distributeItems, type AlignMode } from "../lib/align";
 import { exportBoardPdf, exportBoardPng } from "../lib/export-board";
-import { normalizeBoard } from "../lib/normalize-board";
+import { EMPTY_BOARD, normalizeBoard } from "../lib/normalize-board";
 import { StickyNoteView } from "./sticky-note-view";
 
 type Tool = "select" | "pan" | "sticky" | ShapeKind | "image" | "connector" | "frame" | "freehand";
@@ -32,7 +32,7 @@ const COLOR_CLASS: Record<string, string> = {
 
 export function BoardCanvas({ pageId }: { pageId: string }) {
   const t = useTranslations("board");
-  const board = useWorkflowStore((s) => normalizeBoard(s.data?.boards[pageId]));
+  const board = useWorkflowStore((s) => s.data?.boards[pageId] ?? EMPTY_BOARD);
   const updateBoard = useWorkflowStore((s) => s.updateBoard);
   const undo = useWorkflowStore((s) => s.undo);
   const redo = useWorkflowStore((s) => s.redo);

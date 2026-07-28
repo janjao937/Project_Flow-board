@@ -3,13 +3,14 @@
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { TasksState } from "@/features/workflow/domain/document-data";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
+
+const EMPTY_TASKS: TasksState = { lists: [], cards: {}, labels: [] };
 
 export function TasksBoard({ pageId }: { pageId: string }) {
   const t = useTranslations("tasks");
-  const tasks = useWorkflowStore(
-    (s) => s.data?.tasks[pageId] ?? { lists: [], cards: {}, labels: [] },
-  );
+  const tasks = useWorkflowStore((s) => s.data?.tasks[pageId] ?? EMPTY_TASKS);
   const updateTasks = useWorkflowStore((s) => s.updateTasks);
 
   return (

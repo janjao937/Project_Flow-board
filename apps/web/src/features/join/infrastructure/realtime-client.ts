@@ -2,6 +2,7 @@
 
 import type { WorkflowManifest } from "@/shared/packages/flowpkg";
 import type { WorkflowDocumentData } from "@/features/workflow/domain/document-data";
+import { resolvePublicWsBase } from "@/shared/api-client/public-url";
 import { useSessionStore, type SessionParticipant } from "../store/session-store";
 
 type Handlers = {
@@ -22,8 +23,7 @@ export class RealtimeClient {
 
   connect(token: string): void {
     this.disconnect();
-    const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-    const wsBase = api.replace(/^http/, "ws");
+    const wsBase = resolvePublicWsBase();
     this.socket = new WebSocket(`${wsBase}/realtime?token=${encodeURIComponent(token)}`);
 
     this.socket.addEventListener("message", (event) => {

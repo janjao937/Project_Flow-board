@@ -1,0 +1,57 @@
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    environment:
+      NODE_ENV: staging
+      PORT: 4000
+      HOST: 0.0.0.0
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-trycloudflare-dev-secret-change-me}
+    depends_on:
+      - nats
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/ready"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+    environment:
+      NODE_ENV: staging
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  edge:
+    image: caddy:2.9-alpine
+    depends_on:
+      - web
+      - api
+    volumes:
+      - ./caddy/Caddyfile.trycloudflare:/etc/caddy/Caddyfile:ro
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://edge:80
+    depends_on:
+      - edge
+    restart: unless-stopped

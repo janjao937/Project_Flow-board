@@ -6,3 +6,11 @@ services:
       - "4222:4222"
       - "8222:8222"
     restart: unless-stopped
+
+  cloudflared:
+    profiles: ["trycloudflare"]
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://host.docker.internal:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

@@ -4,13 +4,17 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { PlanState } from "@/features/workflow/domain/document-data";
 import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 
+const EMPTY_PLAN: PlanState = { boxes: [] };
+const EMPTY_TASKS_MAP: Record<string, never> = {};
+
 export function PlanView({ pageId }: { pageId: string }) {
   const t = useTranslations("plan");
-  const plan = useWorkflowStore((s) => s.data?.plans[pageId] ?? { boxes: [] });
-  const tasksByPage = useWorkflowStore((s) => s.data?.tasks ?? {});
+  const plan = useWorkflowStore((s) => s.data?.plans[pageId] ?? EMPTY_PLAN);
+  const tasksByPage = useWorkflowStore((s) => s.data?.tasks ?? EMPTY_TASKS_MAP);
   const updatePlan = useWorkflowStore((s) => s.updatePlan);
   const canEdit = useSessionStore((s) => (s.sessionId ? s.canEdit : true));
 

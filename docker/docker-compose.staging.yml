@@ -51,6 +51,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://staging.example.com}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://staging.example.com/api}
     environment:
       NODE_ENV: staging
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://staging.example.com}

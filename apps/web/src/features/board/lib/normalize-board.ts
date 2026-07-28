@@ -1,9 +1,22 @@
 import { createEmptyBoard, type BoardState } from "@/features/workflow/domain/document-data";
 
+export const EMPTY_BOARD: BoardState = createEmptyBoard();
+
 export function normalizeBoard(current: BoardState | null | undefined): BoardState {
-  const empty = createEmptyBoard();
   if (!current) {
-    return empty;
+    return EMPTY_BOARD;
+  }
+  if (
+    current.stickies &&
+    current.shapes &&
+    current.connectors &&
+    current.images &&
+    current.frames &&
+    current.strokes &&
+    current.groups &&
+    typeof current.gridEnabled === "boolean"
+  ) {
+    return current;
   }
   return {
     stickies: current.stickies ?? [],

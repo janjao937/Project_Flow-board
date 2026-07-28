@@ -4,15 +4,17 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { RoadmapState } from "@/features/workflow/domain/document-data";
 import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 
+const EMPTY_ROADMAP: RoadmapState = { milestones: [], lanes: [] };
+const EMPTY_TASKS_MAP: Record<string, never> = {};
+
 export function RoadmapView({ pageId }: { pageId: string }) {
   const t = useTranslations("roadmap");
-  const roadmap = useWorkflowStore(
-    (s) => s.data?.roadmaps[pageId] ?? { milestones: [], lanes: [] },
-  );
-  const tasksByPage = useWorkflowStore((s) => s.data?.tasks ?? {});
+  const roadmap = useWorkflowStore((s) => s.data?.roadmaps[pageId] ?? EMPTY_ROADMAP);
+  const tasksByPage = useWorkflowStore((s) => s.data?.tasks ?? EMPTY_TASKS_MAP);
   const updateRoadmap = useWorkflowStore((s) => s.updateRoadmap);
   const canEdit = useSessionStore((s) => (s.sessionId ? s.canEdit : true));
 
