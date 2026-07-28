@@ -49,7 +49,7 @@ export async function buildApp(env: Env): Promise<BuiltApp> {
   const hub = new RealtimeHub(nats);
 
   await app.register(cors, {
-    origin: env.CORS_ORIGIN,
+    origin: env.NODE_ENV === "development" ? true : env.CORS_ORIGIN,
   });
   await app.register(websocket);
 

@@ -25,6 +25,7 @@ export function HostSessionPanel() {
   const endSession = useSessionStore((s) => s.endSession);
   const [displayName, setDisplayName] = useState("Host");
   const [open, setOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   if (!manifest || !data) {
     return null;
@@ -92,7 +93,7 @@ export function HostSessionPanel() {
           size="sm"
           onClick={() => {
             void endSession()
-              .then(() => toast.message(t("hostEnded")))
+              .then(() => toast.success(t("hostEnded")))
               .catch((error) => showErrorToast(error, te));
           }}
         >
@@ -120,7 +121,9 @@ export function HostSessionPanel() {
           </div>
           <Button
             className="w-full"
+            disabled={starting}
             onClick={() => {
+              setStarting(true);
               void startHostSession({
                 displayName: displayName.trim() || "Host",
                 guestsCanEdit: useSessionStore.getState().guestsCanEdit,
@@ -128,7 +131,8 @@ export function HostSessionPanel() {
                 data,
               })
                 .then(() => toast.success(t("sessionStarted")))
-                .catch((error) => showErrorToast(error, te));
+                .catch((error) => showErrorToast(error, te))
+                .finally(() => setStarting(false));
             }}
           >
             {t("startSession")}

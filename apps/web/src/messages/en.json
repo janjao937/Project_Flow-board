@@ -168,6 +168,7 @@
     "readOnly": "You can view only.",
     "workflowPackInvalid": "This workflow file is invalid.",
     "rateLimited": "Too many requests. Try again later.",
+    "apiUnavailable": "Cannot reach the API. Run npm run dev (web + api) and try again.",
     "unexpected": "Something went wrong."
   },
   "theme": {

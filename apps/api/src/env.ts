@@ -8,7 +8,7 @@ const EnvSchema = z.object({
   NATS_URL: z.string().default("nats://localhost:4222"),
   JWT_SECRET: z.string().min(8).default("dev-secret-change-me"),
   SESSION_TTL_MS: z.coerce.number().int().positive().default(1000 * 60 * 60 * 8),
-  HOST_HEARTBEAT_TTL_MS: z.coerce.number().int().positive().default(1000 * 25),
+  HOST_HEARTBEAT_TTL_MS: z.coerce.number().int().positive().default(1000 * 45),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

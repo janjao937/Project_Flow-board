@@ -25,13 +25,26 @@ export function isApiError(value: unknown): value is ApiError {
 
 export async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
   const base = resolvePublicApiBase();
-  const response = await fetch(`${base}${input}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
+  let response: Response;
+  try {
+    const headers = new Headers(init?.headers);
+    if (init?.body != null && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    response = await fetch(`${base}${input}`, {
+      ...init,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      {
+        code: ErrorCode.INTERNAL,
+        messageKey: "errors.apiUnavailable",
+        requestId: "network",
+      },
+      0,
+    );
+  }
 
   if (!response.ok) {
     let payload: ErrorResponseBody | null = null;

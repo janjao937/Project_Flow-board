@@ -51,6 +51,17 @@ export function SessionRealtimeBridge() {
   }, [token, sessionId, applyRemote, t]);
 
   useEffect(() => {
+    if (!token || !sessionId || role !== "host") {
+      return;
+    }
+    void useSessionStore.getState().heartbeat();
+    const timer = window.setInterval(() => {
+      void useSessionStore.getState().heartbeat();
+    }, 10_000);
+    return () => window.clearInterval(timer);
+  }, [token, sessionId, role]);
+
+  useEffect(() => {
     clientRef.current?.sendPresence(activePageId, null);
   }, [activePageId]);
 

@@ -168,6 +168,7 @@
     "readOnly": "ดูได้อย่างเดียว",
     "workflowPackInvalid": "ไฟล์ workflow ไม่ถูกต้อง",
     "rateLimited": "ส่งคำขอมากเกินไป ลองใหม่ภายหลัง",
+    "apiUnavailable": "ติดต่อ API ไม่ได้ รัน npm run dev (web + api) แล้วลองใหม่",
     "unexpected": "เกิดข้อผิดพลาด"
   },
   "theme": {

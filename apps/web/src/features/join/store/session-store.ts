@@ -149,7 +149,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       method: "POST",
       headers: { Authorization: `Bearer ${state.token}` },
     });
-    set({ endedReason: "host_ended" });
+    set({
+      sessionId: null,
+      joinCode: null,
+      token: null,
+      role: null,
+      participantId: null,
+      displayName: null,
+      canEdit: true,
+      guestsCanEdit: false,
+      participants: [],
+      endedReason: null,
+      revision: 0,
+    });
   },
 
   heartbeat: async () => {

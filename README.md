@@ -70,35 +70,31 @@ npm run docker:dev:tunnel
 
 ### 3) Full stack + trycloudflare (แนะนำสำหรับ demo / ทดสอบ join จากมือถือ)
 
-รัน web + api + nats + Caddy + quick tunnel ใน Docker  
+รัน web + api + nats + Caddy + quick tunnel ใน Docker ด้วยคำสั่งเดียว  
 เปิดผ่าน `*.trycloudflare.com` ได้ทั้ง UI, API (`/api`), และ realtime websocket
 
 ```bash
-npm run docker:trycloudflare
+npm run trycloudflare
 ```
 
-เทียบเท่า:
-
-```bash
-docker compose -f docker/docker-compose.trycloudflare.yml up --build
-```
-
-1. รอ build เสร็จ
-2. เปิด log service `cloudflared`
-3. คัดลอก URL ที่ขึ้นว่า `https://….trycloudflare.com`
-4. เปิดในเบราว์เซอร์ / มือถือ
+สคริปต์จะ build/start stack แล้วพิมพ์ **Public URL** ให้เมื่อ tunnel พร้อม  
+ส่งลิงก์นั้นให้คนอื่น → host กด Start session → ส่ง join code
 
 หมายเหตุ:
 
+- ต้องมี Docker Desktop
 - ไม่ต้องมี Cloudflare account / tunnel token
 - URL เปลี่ยนทุกครั้งที่สร้าง tunnel ใหม่
 - API ถูก proxy ที่ path `/api`
+- ครั้งแรกอาจใช้เวลา build นาน
 
 หยุด:
 
 ```bash
-docker compose -f docker/docker-compose.trycloudflare.yml down
+npm run trycloudflare:stop
 ```
+
+หรือกด `Ctrl+C` ในเทอร์มินัลที่รันอยู่
 
 ---
 
@@ -151,7 +147,7 @@ docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --pr
 |----------|--------|
 | พัฒนาโค้ดบนเครื่อง | `docker:dev` + `npm run dev` |
 | แชร์ UI ชั่วคราวจาก `npm run dev` | + `docker:dev:tunnel` |
-| Demo เต็มระบบผ่านเน็ต (ไม่ต้องมีโดเมน) | `docker:trycloudflare` |
+| Demo เต็มระบบผ่านเน็ต (ไม่ต้องมีโดเมน) | `npm run trycloudflare` |
 | Deploy บน VPS | `docker:staging` |
 | Deploy บน VPS + โดเมน Cloudflare | `docker:staging:tunnel` |
 
