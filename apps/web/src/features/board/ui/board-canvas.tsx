@@ -106,7 +106,7 @@ function RgbColorControls({
   const hex = toPickerHex(value);
   const rgb = parseToRgb(value);
   return (
-    <div className="border-border/60 ml-1 flex max-w-full flex-wrap items-center gap-2 rounded-lg border px-1.5 py-1" role="group" aria-label={label}>
+    <div className="border-border ml-1 flex max-w-full flex-wrap items-center gap-2 rounded-lg border px-1.5 py-1" role="group" aria-label={label}>
       <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">{label}</span>
       {presets.map((color) => (
         <button
@@ -861,7 +861,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      <div className="border-border/60 bg-background/90 z-20 flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-2 backdrop-blur md:px-3">
+      <div className="border-border bg-background z-20 flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-2 md:px-3">
         {(
           [
             ["select", t("select")],
@@ -892,7 +892,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             {label}
           </Button>
         ))}
-        <div className="border-border/60 ml-1 flex items-center gap-0.5 rounded-lg border p-0.5" role="group" aria-label={t("zoomLabel")}>
+        <div className="border-border ml-1 flex items-center gap-0.5 rounded-lg border p-0.5" role="group" aria-label={t("zoomLabel")}>
           <Button
             size="sm"
             variant="ghost"

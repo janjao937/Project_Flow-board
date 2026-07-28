@@ -53,7 +53,7 @@ export function AppHeader() {
   }, [dirty]);
 
   return (
-    <header className="border-border/60 bg-background/75 sticky top-0 z-30 border-b backdrop-blur-md">
+    <header className="border-border bg-background/95 sticky top-0 z-30 border-b backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-2 px-3 md:px-4">
         <Link href="/" className="font-[family-name:var(--font-display)] text-lg tracking-tight">
           {tb("name")}
@@ -167,7 +167,7 @@ function MobileActions() {
   const save = useWorkflowStore((s) => s.save);
 
   return (
-    <div className="border-border/60 flex gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
+    <div className="border-border flex gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
       <Button
         size="sm"
         variant="outline"

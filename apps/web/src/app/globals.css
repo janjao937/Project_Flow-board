@@ -48,39 +48,43 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Light: high-contrast cool workspace — readable body text, clear chrome, teal brand */
 :root {
-  --background: oklch(0.985 0.005 180);
-  --foreground: oklch(0.22 0.02 200);
-  --card: oklch(0.995 0.004 180);
-  --card-foreground: oklch(0.22 0.02 200);
-  --popover: oklch(0.995 0.004 180);
-  --popover-foreground: oklch(0.22 0.02 200);
-  --primary: oklch(0.42 0.08 185);
-  --primary-foreground: oklch(0.98 0.01 180);
-  --secondary: oklch(0.94 0.01 190);
-  --secondary-foreground: oklch(0.28 0.03 200);
-  --muted: oklch(0.94 0.01 190);
-  --muted-foreground: oklch(0.5 0.02 200);
-  --accent: oklch(0.93 0.02 185);
-  --accent-foreground: oklch(0.28 0.03 200);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.88 0.015 190);
-  --input: oklch(0.88 0.015 190);
-  --ring: oklch(0.55 0.06 185);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: oklch(0.985 0.006 210);
+  --foreground: oklch(0.22 0.028 235);
+  --card: oklch(1 0.004 210);
+  --card-foreground: oklch(0.22 0.028 235);
+  --popover: oklch(1 0.004 210);
+  --popover-foreground: oklch(0.22 0.028 235);
+  --primary: oklch(0.42 0.1 185);
+  --primary-foreground: oklch(0.99 0.01 180);
+  --secondary: oklch(0.945 0.012 210);
+  --secondary-foreground: oklch(0.28 0.03 235);
+  --muted: oklch(0.955 0.01 210);
+  --muted-foreground: oklch(0.4 0.025 235);
+  --accent: oklch(0.94 0.03 185);
+  --accent-foreground: oklch(0.28 0.04 185);
+  --destructive: oklch(0.5 0.2 27);
+  --border: oklch(0.82 0.02 220);
+  --input: oklch(0.82 0.02 220);
+  --ring: oklch(0.48 0.09 185);
+  --chart-1: oklch(0.55 0.12 185);
+  --chart-2: oklch(0.6 0.1 230);
+  --chart-3: oklch(0.65 0.12 85);
+  --chart-4: oklch(0.55 0.14 25);
+  --chart-5: oklch(0.45 0.08 300);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.975 0.008 210);
+  --sidebar-foreground: oklch(0.22 0.028 235);
+  --sidebar-primary: oklch(0.42 0.1 185);
+  --sidebar-primary-foreground: oklch(0.99 0.01 180);
+  --sidebar-accent: oklch(0.94 0.02 185);
+  --sidebar-accent-foreground: oklch(0.28 0.04 185);
+  --sidebar-border: oklch(0.84 0.018 220);
+  --sidebar-ring: oklch(0.48 0.09 185);
+  --board-canvas: oklch(0.96 0.01 210);
+  --board-dot: oklch(0.55 0.02 220 / 22%);
+  --board-grid-line: oklch(0.45 0.02 220 / 16%);
 }
 
 .dark {
@@ -115,6 +119,9 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --board-canvas: color-mix(in oklab, var(--background) 82%, #0f766e 18%);
+  --board-dot: oklch(0.9 0.02 180 / 14%);
+  --board-grid-line: oklch(0.9 0.02 180 / 12%);
 }
 
 @layer base {
@@ -122,7 +129,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans;
@@ -130,13 +137,13 @@
 }
 
 .board-surface {
-  background-color: color-mix(in oklab, var(--background) 88%, #0f766e 12%);
-  background-image: radial-gradient(color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 1px);
+  background-color: var(--board-canvas);
+  background-image: radial-gradient(var(--board-dot) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .board-grid {
   background-size: 20px 20px;
-  background-image: linear-gradient(color-mix(in oklab, var(--foreground) 10%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in oklab, var(--foreground) 10%, transparent) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--board-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--board-grid-line) 1px, transparent 1px);
 }
-
