@@ -189,7 +189,7 @@ Stack: Next.js (TS), Tailwind, shadcn/ui, **modern UX** — Fastify, NATS, P2P, 
 | 5.4 | Persist toggle in file | เก็บค่า default ใน manifest / session settings (โหลดไฟล์ครั้งถัดไป host ได้ค่าเดิม) | Planned |
 | 5.5 | Live change toggle | host สลับ view-only ↔ guests can edit ระหว่าง session (broadcast ให้ client) | Planned |
 | 5.6 | Per-user roles (editor/viewer รายคน) | — | **Out of scope** |
-| 5.7 | Encrypted workflow file | passphrase ป้องกันเปิดไฟล์ | Later |
+| 5.7 | Encrypted workflow file | passphrase ป้องกันเปิดไฟล์ (AES-GCM + PBKDF2 outer wrapper) | Done |
 
 ### Join code + permission (flow สั้นๆ)
 
@@ -789,8 +789,8 @@ flowchart LR
 
 ### Phase 4 — Security extras
 
-- Optional encrypted packages
-- Per-user roles (ถ้าต้องการในอนาคต — ปัจจุบัน out of scope)
+- Optional encrypted packages (**Done**: AES-GCM + PBKDF2 passphrase on Save As / Open)
+- Per-user roles (ถ้าต้องการในอนาคต — ปัจจุบัน out of scope / ยังไม่ทำ)
 
 ---
 

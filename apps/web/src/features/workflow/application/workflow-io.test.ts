@@ -44,8 +44,19 @@ describe("workflow-io", () => {
     const bytes = await packWorkflow(created.manifest, created.data);
     const opened = await unpackWorkflow(bytes);
     expect(opened.manifest.name).toBe("Roundtrip");
+    expect(opened.encrypted).toBe(false);
     expect(opened.data.boards[boardId]?.stickies[0]?.text).toBe("Hello");
     expect(Object.keys(opened.data.roadmaps).length).toBeGreaterThan(0);
     expect(Object.keys(opened.data.plans).length).toBeGreaterThan(0);
+  });
+
+  it("round-trips encrypted packages with passphrase", async () => {
+    const created = createNewWorkflow("Vault");
+    const bytes = await packWorkflow(created.manifest, created.data, undefined, {
+      passphrase: "s3cret-phrase",
+    });
+    const opened = await unpackWorkflow(bytes, { passphrase: "s3cret-phrase" });
+    expect(opened.encrypted).toBe(true);
+    expect(opened.manifest.name).toBe("Vault");
   });
 });

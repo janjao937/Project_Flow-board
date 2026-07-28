@@ -4,3 +4,7 @@ export const DOCUMENT_PATH = "document.bin";
 export const CHECKSUM_PATH = "checksum.sha256";
 export const PREVIEW_PATH = "preview.png";
 export const ASSETS_DIR = "assets/";
+export const ENCRYPTION_META_PATH = "encryption.json";
+export const ENCRYPTION_PAYLOAD_PATH = "payload.bin";
+export const ENCRYPTION_FORMAT = "flowpkg-encrypted";
+export const PBKDF2_ITERATIONS = 310_000;

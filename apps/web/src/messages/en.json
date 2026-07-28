@@ -167,9 +167,25 @@
     "sessionEnded": "The host closed this session.",
     "readOnly": "You can view only.",
     "workflowPackInvalid": "This workflow file is invalid.",
+    "wrongPassphrase": "Wrong passphrase for this workflow file.",
+    "passphraseRequired": "This workflow file needs a passphrase.",
+    "cryptoUnavailable": "Secure encryption is not available in this browser.",
     "rateLimited": "Too many requests. Try again later.",
     "apiUnavailable": "Cannot reach the API. Run npm run dev (web + api) and try again.",
     "unexpected": "Something went wrong."
+  },
+  "security": {
+    "unlockTitle": "Unlock workflow",
+    "unlockBody": "Enter the passphrase to open this encrypted .flowpkg file.",
+    "protectTitle": "Protect workflow",
+    "protectBody": "Optionally encrypt this .flowpkg with a passphrase before saving.",
+    "encryptCheckbox": "Encrypt with passphrase",
+    "passphrase": "Passphrase",
+    "confirmPassphrase": "Confirm passphrase",
+    "mismatch": "Passphrases do not match or are empty.",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "unlock": "Unlock"
   },
   "theme": {
     "light": "Light",

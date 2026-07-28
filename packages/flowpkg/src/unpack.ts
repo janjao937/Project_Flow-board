@@ -1,6 +1,6 @@
 import { strFromU8, unzipSync } from "fflate";
 import { computePackageChecksum } from "./checksum";
-import { ASSETS_DIR, CHECKSUM_PATH, DOCUMENT_PATH, MANIFEST_PATH, PREVIEW_PATH } from "./constants";
+import { ASSETS_DIR, CHECKSUM_PATH, DOCUMENT_PATH, ENCRYPTION_META_PATH, ENCRYPTION_PAYLOAD_PATH, MANIFEST_PATH, PREVIEW_PATH } from "./constants";
 import type { FlowPackage, PackedAsset } from "./types";
 import { WorkflowManifestSchema } from "./types";
 
@@ -23,6 +23,9 @@ export async function unpackFlowPackage(bytes: Uint8Array): Promise<FlowPackage>
 
   const manifestBytes = files[MANIFEST_PATH];
   if (!manifestBytes) {
+    if (files[ENCRYPTION_META_PATH] && files[ENCRYPTION_PAYLOAD_PATH]) {
+      throw new FlowPackError("encrypted");
+    }
     throw new FlowPackError("missing_manifest");
   }
 

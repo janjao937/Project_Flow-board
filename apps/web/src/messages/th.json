@@ -167,9 +167,25 @@
     "sessionEnded": "เจ้าของปิดเซสชันแล้ว",
     "readOnly": "ดูได้อย่างเดียว",
     "workflowPackInvalid": "ไฟล์ workflow ไม่ถูกต้อง",
+    "wrongPassphrase": "รหัสผ่านไฟล์ไม่ถูกต้อง",
+    "passphraseRequired": "ไฟล์นี้ต้องใช้รหัสผ่าน",
+    "cryptoUnavailable": "เบราว์เซอร์นี้ไม่รองรับการเข้ารหัสที่ปลอดภัย",
     "rateLimited": "ส่งคำขอมากเกินไป ลองใหม่ภายหลัง",
     "apiUnavailable": "ติดต่อ API ไม่ได้ รัน npm run dev (web + api) แล้วลองใหม่",
     "unexpected": "เกิดข้อผิดพลาด"
+  },
+  "security": {
+    "unlockTitle": "ปลดล็อก workflow",
+    "unlockBody": "ใส่รหัสผ่านเพื่อเปิดไฟล์ .flowpkg ที่เข้ารหัส",
+    "protectTitle": "ป้องกัน workflow",
+    "protectBody": "เลือกเข้ารหัสไฟล์ .flowpkg ด้วยรหัสผ่านก่อนบันทึกได้",
+    "encryptCheckbox": "เข้ารหัสด้วยรหัสผ่าน",
+    "passphrase": "รหัสผ่าน",
+    "confirmPassphrase": "ยืนยันรหัสผ่าน",
+    "mismatch": "รหัสผ่านไม่ตรงกันหรือว่าง",
+    "cancel": "ยกเลิก",
+    "continue": "ดำเนินการต่อ",
+    "unlock": "ปลดล็อก"
   },
   "theme": {
     "light": "สว่าง",

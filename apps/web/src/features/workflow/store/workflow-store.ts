@@ -17,6 +17,11 @@ import { useSessionStore } from "@/features/join/store/session-store";
 import { normalizeBoard } from "@/features/board/lib/normalize-board";
 import { renderBoardPreviewPng } from "@/features/board/lib/export-board";
 import { EMPTY_ROADMAP } from "@/features/roadmap/lib/normalize";
+import { isEncryptedPackage } from "@/shared/packages/flowpkg";
+import {
+  requestProtectPassphrase,
+  requestUnlockPassphrase,
+} from "../ui/passphrase-prompt";
 
 async function buildPreview(data: WorkflowDocumentData): Promise<Uint8Array | undefined> {
   const board = Object.values(data.boards)[0];
@@ -41,6 +46,8 @@ interface WorkflowStore {
   fileHandle: FlowFileHandle | null;
   fileName: string | null;
   dirty: boolean;
+  packageEncrypted: boolean;
+  sessionPassphrase: string | null;
   past: HistoryEntry[];
   future: HistoryEntry[];
   newWorkflow: (name: string) => void;
@@ -96,6 +103,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   fileHandle: null,
   fileName: null,
   dirty: false,
+  packageEncrypted: false,
+  sessionPassphrase: null,
   past: [],
   future: [],
 
@@ -108,6 +117,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       fileHandle: null,
       fileName: null,
       dirty: true,
+      packageEncrypted: false,
+      sessionPassphrase: null,
       past: [],
       future: [],
     });
@@ -115,7 +126,15 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   openFromDisk: async () => {
     const picked = await pickOpenFlowPackage();
-    const opened = await unpackWorkflow(picked.bytes);
+    let passphrase: string | undefined;
+    if (isEncryptedPackage(picked.bytes)) {
+      const unlocked = await requestUnlockPassphrase();
+      if (!unlocked) {
+        return;
+      }
+      passphrase = unlocked;
+    }
+    const opened = await unpackWorkflow(picked.bytes, { passphrase });
     set({
       manifest: opened.manifest,
       data: opened.data,
@@ -123,6 +142,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       fileHandle: picked.handle,
       fileName: picked.name,
       dirty: false,
+      packageEncrypted: opened.encrypted,
+      sessionPassphrase: opened.encrypted ? (passphrase ?? null) : null,
       past: [],
       future: [],
     });
@@ -134,8 +155,20 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (!state.manifest || !state.data || !assertCanSave()) {
       return;
     }
+    let passphrase: string | undefined;
+    if (state.packageEncrypted) {
+      passphrase = state.sessionPassphrase ?? undefined;
+      if (!passphrase) {
+        const unlocked = await requestUnlockPassphrase();
+        if (!unlocked) {
+          return;
+        }
+        passphrase = unlocked;
+        set({ sessionPassphrase: unlocked });
+      }
+    }
     const preview = await buildPreview(state.data);
-    const bytes = await packWorkflow(state.manifest, state.data, preview);
+    const bytes = await packWorkflow(state.manifest, state.data, preview, { passphrase });
     const name = state.fileName ?? `${state.manifest.name}.flowpkg`;
     if (state.fileHandle) {
       await writeToHandle(state.fileHandle, bytes);
@@ -150,6 +183,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
     set({
       dirty: false,
+      packageEncrypted: Boolean(passphrase),
       manifest: { ...state.manifest, updatedAt: new Date().toISOString() },
     });
     rememberRecent({ id: state.manifest.id, name: state.manifest.name, openedAt: Date.now() });
@@ -160,8 +194,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (!state.manifest || !state.data || !assertCanSave()) {
       return;
     }
+    const protect = await requestProtectPassphrase();
+    if (!protect) {
+      return;
+    }
+    const passphrase = protect.encrypt ? protect.passphrase : undefined;
     const preview = await buildPreview(state.data);
-    const bytes = await packWorkflow(state.manifest, state.data, preview);
+    const bytes = await packWorkflow(state.manifest, state.data, preview, { passphrase });
     const suggested = `${state.manifest.name}.flowpkg`;
     const handle = await pickSaveFlowPackage(suggested);
     if (handle) {
@@ -170,11 +209,17 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         fileHandle: handle,
         fileName: handle.name,
         dirty: false,
+        packageEncrypted: Boolean(passphrase),
+        sessionPassphrase: passphrase ?? null,
         manifest: { ...state.manifest, updatedAt: new Date().toISOString() },
       });
     } else {
       downloadBytes(bytes, suggested);
-      set({ dirty: false });
+      set({
+        dirty: false,
+        packageEncrypted: Boolean(passphrase),
+        sessionPassphrase: passphrase ?? null,
+      });
     }
     rememberRecent({ id: state.manifest.id, name: state.manifest.name, openedAt: Date.now() });
   },

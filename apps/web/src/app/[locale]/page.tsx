@@ -11,7 +11,7 @@ import {
   subscribeRecent,
 } from "@/features/workflow/infrastructure/recent";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
-import { FlowPackError } from "@/shared/packages/flowpkg";
+import { flowPackErrorMessageKey } from "@/features/workflow/lib/flow-pack-error";
 
 export default function HomePage() {
   const t = useTranslations("home");
@@ -48,14 +48,10 @@ export default function HomePage() {
               void openFromDisk()
                 .then(() => router.push("/workspace"))
                 .catch((error) => {
-                  if (error instanceof FlowPackError) {
-                    toast.error(te("workflowPackInvalid"));
-                    return;
-                  }
                   if ((error as Error)?.message === "cancelled") {
                     return;
                   }
-                  toast.error(tw("openFailed"));
+                  toast.error(te(flowPackErrorMessageKey(error)));
                 });
             }}
           >

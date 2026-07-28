@@ -8,8 +8,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { LocaleSwitcher, ThemeSwitcher } from "@/components/shell/preference-switchers";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { useSessionStore } from "@/features/join/store/session-store";
-import { FlowPackError } from "@/shared/packages/flowpkg";
-import { showErrorToast } from "@/shared/api-client/show-error-toast";
+import { flowPackErrorMessageKey } from "@/features/workflow/lib/flow-pack-error";
 
 export function AppHeader() {
   const t = useTranslations("nav");
@@ -80,15 +79,10 @@ export function AppHeader() {
               void openFromDisk()
                 .then(() => router.push("/workspace"))
                 .catch((error) => {
-                  if (error instanceof FlowPackError) {
-                    toast.error(te("workflowPackInvalid"));
-                    return;
-                  }
                   if ((error as Error)?.message === "cancelled") {
                     return;
                   }
-                  showErrorToast(error, te);
-                  toast.error(tw("openFailed"));
+                  toast.error(te(flowPackErrorMessageKey(error)));
                 });
             }}
           >
@@ -113,7 +107,9 @@ export function AppHeader() {
             onClick={() => {
               void saveAs()
                 .then(() => toast.success(tw("saved")))
-                .catch(() => toast.error(tw("saveFailed")));
+                .catch((error) => {
+                  toast.error(te(flowPackErrorMessageKey(error)));
+                });
             }}
           >
             {t("saveAs")}
@@ -189,14 +185,10 @@ function MobileActions() {
           void openFromDisk()
             .then(() => router.push("/workspace"))
             .catch((error) => {
-              if (error instanceof FlowPackError) {
-                toast.error(te("workflowPackInvalid"));
-                return;
-              }
               if ((error as Error)?.message === "cancelled") {
                 return;
               }
-              toast.error(tw("openFailed"));
+              toast.error(te(flowPackErrorMessageKey(error)));
             });
         }}
       >
