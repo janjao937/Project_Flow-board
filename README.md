@@ -75,7 +75,8 @@ npm run docker:dev:tunnel
 
 **Windows (กดใช้ในองค์กร):** ดับเบิลคลิกที่รากโปรเจกต์
 
-- `start-trycloudflare.bat` — build/start ทั้ง stack แล้วพิมพ์ Public URL
+- `start-trycloudflare.bat` — build/start ทั้ง stack แล้วพิมพ์ **Public URL** (บันทึกใน `trycloudflare-url.txt`)
+- `show-trycloudflare-url.bat` — แสดงลิงก์อีกครั้งถ้าหาไม่เจอในหน้าต่าง log
 - `stop-trycloudflare.bat` — หยุด containers ทั้งหมด
 
 หรือใช้ npm:

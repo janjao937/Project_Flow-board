@@ -35,11 +35,14 @@ if errorlevel 1 (
 
 echo [OK] Docker พร้อมแล้ว
 echo.
-echo กำลัง build และ start stack...
-echo - ครั้งแรกอาจใช้เวลาหลายนาที
-echo - เมื่อพร้อม จะพิมพ์ Public URL ^(*.trycloudflare.com^)
-echo - ส่งลิงก์ให้ทีม ^> Host กด Start session ^> ส่ง join code
-echo - หยุด: กด Ctrl+C ในหน้าต่างนี้ หรือรัน stop-trycloudflare.bat
+echo โหมดนี้ไม่ต้องมีโดเมนขององค์กร
+echo Cloudflare จะสุ่ม URL: https://xxxx.trycloudflare.com
+echo.
+echo กำลัง build/start แบบเงียบ ^(ไม่โชว์ spam /ready ของ API^)
+echo - รอจนเห็นกล่อง PUBLIC URL
+echo - หรือเปิดไฟล์ trycloudflare-url.txt
+echo - ดูลิงก์ทีหลัง: show-trycloudflare-url.bat
+echo - หยุด: Ctrl+C หรือ stop-trycloudflare.bat
 echo.
 echo ------------------------------------------------
 echo.

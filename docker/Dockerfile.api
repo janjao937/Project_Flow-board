@@ -1,21 +1,23 @@
 FROM node:22-alpine AS deps
-WORKDIR /app
+WORKDIR /repo/apps/api
 COPY apps/api/package.json apps/api/package-lock.json ./
-COPY packages ./packages
 RUN npm ci
 
 FROM node:22-alpine AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY apps/api ./
-COPY packages /packages
+WORKDIR /repo
+COPY --from=deps /repo/apps/api/node_modules ./apps/api/node_modules
+COPY packages ./packages
+COPY apps/api ./apps/api
+WORKDIR /repo/apps/api
 RUN npm run build || npx tsc -p tsconfig.json --noEmit false --outDir dist || true
 
 FROM node:22-alpine
-WORKDIR /app
+WORKDIR /repo
 ENV NODE_ENV=staging
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app ./
-COPY packages /packages
+COPY --from=deps /repo/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /repo/apps/api ./apps/api
+COPY packages ./packages
+WORKDIR /repo/apps/api
 EXPOSE 4000
+# alpine node image has no wget; use node for health from compose if needed
 CMD ["npx", "tsx", "src/index.ts"]
