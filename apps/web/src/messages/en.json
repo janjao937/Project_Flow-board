@@ -92,7 +92,10 @@
     "addCard": "Add card",
     "cardTitle": "Card title",
     "listTitle": "List title",
-    "labels": "Labels"
+    "labels": "Labels",
+    "dragHint": "Drag a card to move it between lists or reorder within a list.",
+    "dropHere": "Drop card here",
+    "readOnly": "View only — guests cannot move cards right now"
   },
   "roadmap": {
     "title": "Roadmap",
