@@ -8,6 +8,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { LocaleSwitcher, ThemeSwitcher } from "@/components/shell/preference-switchers";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { useSessionStore } from "@/features/join/store/session-store";
+import { runAfterLeaveSession } from "@/features/join/application/ensure-leave-session";
 import { flowPackErrorMessageKey } from "@/features/workflow/lib/flow-pack-error";
 
 export function AppHeader() {
@@ -63,13 +64,23 @@ export function AppHeader() {
             size="sm"
             variant="ghost"
             onClick={() => {
-              newWorkflow(tw("untitled"));
-              router.push("/workspace");
+              void runAfterLeaveSession("new", te, () => {
+                newWorkflow(tw("untitled"));
+                router.push("/workspace");
+              });
             }}
           >
             {t("new")}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => router.push("/join")}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void runAfterLeaveSession("join", te, () => {
+                router.push("/join");
+              });
+            }}
+          >
             {t("join")}
           </Button>
           <Button
@@ -168,15 +179,25 @@ function MobileActions() {
 
   return (
     <div className="border-border flex gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
-      <Button size="sm" variant="default" onClick={() => router.push("/join")}>
+      <Button
+        size="sm"
+        variant="default"
+        onClick={() => {
+          void runAfterLeaveSession("join", te, () => {
+            router.push("/join");
+          });
+        }}
+      >
         {t("join")}
       </Button>
       <Button
         size="sm"
         variant="outline"
         onClick={() => {
-          newWorkflow(tw("untitled"));
-          router.push("/workspace");
+          void runAfterLeaveSession("new", te, () => {
+            newWorkflow(tw("untitled"));
+            router.push("/workspace");
+          });
         }}
       >
         {t("new")}

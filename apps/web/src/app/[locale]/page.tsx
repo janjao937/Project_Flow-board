@@ -11,6 +11,7 @@ import {
   subscribeRecent,
 } from "@/features/workflow/infrastructure/recent";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
+import { runAfterLeaveSession } from "@/features/join/application/ensure-leave-session";
 import { flowPackErrorMessageKey } from "@/features/workflow/lib/flow-pack-error";
 
 export default function HomePage() {
@@ -35,13 +36,23 @@ export default function HomePage() {
           <Button
             size="lg"
             onClick={() => {
-              newWorkflow(tw("untitled"));
-              router.push("/workspace");
+              void runAfterLeaveSession("new", te, () => {
+                newWorkflow(tw("untitled"));
+                router.push("/workspace");
+              });
             }}
           >
             {t("ctaNew")}
           </Button>
-          <Button size="lg" variant="secondary" onClick={() => router.push("/join")}>
+          <Button
+            size="lg"
+            variant="secondary"
+            onClick={() => {
+              void runAfterLeaveSession("join", te, () => {
+                router.push("/join");
+              });
+            }}
+          >
             {t("ctaJoin")}
           </Button>
           <Button

@@ -5,7 +5,7 @@ import {
   resolveLeaveConfirm,
   type LeaveAction,
   type LeaveIntent,
-} from "../application/leave-session-policy";
+} from "./leave-session-policy";
 import { requestLeaveSessionConfirm } from "../ui/leave-session-confirm";
 
 /**
@@ -58,4 +58,20 @@ export async function ensureLeaveSessionForIntent(
     }
     return { ok: false, reason: "leave_failed" };
   }
+}
+
+/**
+ * Phase 2 — SR §6.3 full path: leave (if needed) then run the UI intent.
+ * No-ops when user cancels or leave fails.
+ */
+export async function runAfterLeaveSession(
+  intent: LeaveIntent,
+  translateError: (key: string) => string,
+  run: () => void | Promise<void>,
+): Promise<void> {
+  const result = await ensureLeaveSessionForIntent(intent, translateError);
+  if (!result.ok) {
+    return;
+  }
+  await run();
 }
