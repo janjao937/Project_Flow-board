@@ -205,7 +205,8 @@
     "leaveConfirmBody_open_host": "คุณกำลังเป็น host ของเซสชันสด การเปิดไฟล์จะจบเซสชันสำหรับทุกคน",
     "leaveConfirmBody_open_guest": "คุณกำลังเข้าร่วมเซสชันสด การเปิดไฟล์จะตัดการเชื่อมต่อจากเซสชันนี้",
     "leaveConfirmOk": "ดำเนินการต่อ",
-    "leaveConfirmCancel": "ยกเลิก"
+    "leaveConfirmCancel": "ยกเลิก",
+    "leaveConfirmLeaving": "กำลังออก…"
   },
   "errors": {
     "validation": "ข้อมูลบางช่องไม่ถูกต้อง",

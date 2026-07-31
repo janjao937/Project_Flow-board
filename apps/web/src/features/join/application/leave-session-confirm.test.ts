@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   requestLeaveSessionConfirm,
   subscribeLeaveSessionConfirm,
+  type LeaveSessionConfirmRequest,
 } from "../ui/leave-session-confirm";
 import type { ConfirmDecision } from "./leave-session-policy";
 
@@ -13,23 +14,22 @@ const hostNew: ConfirmDecision = {
 };
 
 describe("requestLeaveSessionConfirm", () => {
-  it("delivers the decision to the subscriber and resolves ok", async () => {
+  it("delivers the decision to the subscriber and resolves left", async () => {
     const seen: ConfirmDecision[] = [];
     const unsubscribe = subscribeLeaveSessionConfirm((request) => {
       if (request) {
         seen.push(request.decision);
-        request.resolve("ok");
+        request.resolve({ kind: "left" });
       }
     });
 
-    await expect(requestLeaveSessionConfirm(hostNew)).resolves.toBe("ok");
+    await expect(requestLeaveSessionConfirm(hostNew)).resolves.toEqual({ kind: "left" });
     expect(seen).toEqual([hostNew]);
     unsubscribe();
   });
 
   it("cancels previous pending when a new confirm is requested", async () => {
-    let latest: { decision: ConfirmDecision; resolve: (c: "ok" | "cancel") => void } | null =
-      null;
+    let latest: LeaveSessionConfirmRequest | null = null;
     const unsubscribe = subscribeLeaveSessionConfirm((request) => {
       latest = request;
     });
@@ -40,10 +40,15 @@ describe("requestLeaveSessionConfirm", () => {
       intent: "join",
     });
 
-    await expect(first).resolves.toBe("cancel");
-    expect(latest?.decision.intent).toBe("join");
-    latest?.resolve("ok");
-    await expect(second).resolves.toBe("ok");
+    await expect(first).resolves.toEqual({ kind: "cancelled" });
+    const active = latest;
+    expect(active).not.toBeNull();
+    if (!active) {
+      throw new Error("expected pending leave-session confirm request");
+    }
+    expect(active.decision.intent).toBe("join");
+    active.resolve({ kind: "left" });
+    await expect(second).resolves.toEqual({ kind: "left" });
     unsubscribe();
   });
 });

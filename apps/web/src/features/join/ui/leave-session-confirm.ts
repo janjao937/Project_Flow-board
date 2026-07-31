@@ -1,8 +1,15 @@
-import type { ConfirmChoice, ConfirmDecision } from "../application/leave-session-policy";
+import type { ConfirmDecision } from "../application/leave-session-policy";
+
+/** Outcome after the confirm dialog finishes (leave may already be done on OK). */
+export type LeaveConfirmOutcome =
+  | { kind: "cancelled" }
+  | { kind: "left" }
+  | { kind: "leave_failed" };
 
 export type LeaveSessionConfirmRequest = {
   decision: ConfirmDecision;
-  resolve: (choice: ConfirmChoice) => void;
+  translateError?: (key: string) => string;
+  resolve: (outcome: LeaveConfirmOutcome) => void;
 };
 
 type Listener = (request: LeaveSessionConfirmRequest | null) => void;
@@ -23,22 +30,25 @@ export function subscribeLeaveSessionConfirm(next: Listener): () => void {
 }
 
 /**
- * Phase 1 — Show leave-session confirm dialog.
- * Resolves "ok" | "cancel". Dismiss without confirm counts as cancel.
+ * Phase 1/4 — Show leave-session confirm dialog.
+ * On OK the host executes leave while busy, then resolves "left".
+ * Dismiss / Cancel resolves "cancelled". Leave API failure resolves "leave_failed".
  */
 export function requestLeaveSessionConfirm(
   decision: ConfirmDecision,
-): Promise<ConfirmChoice> {
+  translateError?: (key: string) => string,
+): Promise<LeaveConfirmOutcome> {
   return new Promise((resolve) => {
     if (pending) {
-      pending.resolve("cancel");
+      pending.resolve({ kind: "cancelled" });
     }
     pending = {
       decision,
-      resolve: (choice) => {
+      translateError,
+      resolve: (outcome) => {
         pending = null;
         listener?.(null);
-        resolve(choice);
+        resolve(outcome);
       },
     };
     listener?.(pending);

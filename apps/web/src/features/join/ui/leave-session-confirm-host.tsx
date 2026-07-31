@@ -11,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { showErrorToast } from "@/shared/api-client/show-error-toast";
+import { executeLeaveAction } from "../application/ensure-leave-session";
 import {
   leaveConfirmMessageKey,
   type ConfirmDecision,
@@ -41,11 +43,28 @@ export function LeaveSessionConfirmHost() {
     ? t(`leaveConfirmBody_${leaveConfirmMessageKey(decision.intent, decision.role)}` as const)
     : "";
 
-  function finish(choice: "ok" | "cancel") {
+  function cancel() {
     if (!request || busy) {
       return;
     }
-    request.resolve(choice);
+    request.resolve({ kind: "cancelled" });
+  }
+
+  async function confirmLeave() {
+    if (!request || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await executeLeaveAction(request.decision.leaveAction);
+      request.resolve({ kind: "left" });
+    } catch (error) {
+      if (request.translateError) {
+        showErrorToast(error, request.translateError);
+      }
+      setBusy(false);
+      request.resolve({ kind: "leave_failed" });
+    }
   }
 
   return (
@@ -53,28 +72,37 @@ export function LeaveSessionConfirmHost() {
       open={open}
       onOpenChange={(next) => {
         if (!next && request && !busy) {
-          finish("cancel");
+          cancel();
         }
       }}
     >
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-md"
+        data-testid="leave-session-confirm"
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{body}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" disabled={busy} onClick={() => finish("cancel")}>
+          <Button
+            variant="outline"
+            disabled={busy}
+            data-testid="leave-session-confirm-cancel"
+            onClick={cancel}
+          >
             {t("leaveConfirmCancel")}
           </Button>
           <Button
             variant="destructive"
             disabled={busy}
+            data-testid="leave-session-confirm-ok"
             onClick={() => {
-              setBusy(true);
-              finish("ok");
+              void confirmLeave();
             }}
           >
-            {t("leaveConfirmOk")}
+            {busy ? t("leaveConfirmLeaving") : t("leaveConfirmOk")}
           </Button>
         </DialogFooter>
       </DialogContent>
