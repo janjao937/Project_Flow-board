@@ -20,3 +20,4 @@ blob-report
 playwright/.cache
 *.flowpkg
 trycloudflare-url.txt
+docs/
