@@ -81,8 +81,8 @@ export function TextBoxView({
       selected={selected}
       canEdit={canEdit}
       canDrag={canDrag && !editing}
-      canResize={canResize && !editing}
-      canRotate={canRotate && !editing}
+      canResize={canResize}
+      canRotate={canRotate}
       dragOffset={dragOffset}
       zoom={zoom}
       minWidth={80}
@@ -90,10 +90,10 @@ export function TextBoxView({
       className={`absolute overflow-visible ${selected ? "ring-2 ring-teal-700" : ""}`}
       style={{ zIndex: textBox.zIndex }}
       onSelect={onSelect}
-      onChange={onChange}
-      onTap={() => {
-        if (selected) {
-          beginEdit();
+      onChange={(next) => onChange({ ...next, text: editing ? textDraft : next.text })}
+      onTransformStart={() => {
+        if (editing && textDraft !== textBox.text) {
+          onChange({ ...textBox, text: textDraft });
         }
       }}
       onDragMove={onDragMove}
@@ -115,7 +115,15 @@ export function TextBoxView({
             placeholder="Type text…"
             onChange={(event) => setTextDraft(event.target.value)}
             onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setTextDraft(textBox.text);
+                setEditing(false);
+                onEditEnd?.();
+              }
+            }}
             onBlur={commitEdit}
           />
         ) : (

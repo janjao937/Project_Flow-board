@@ -94,8 +94,8 @@ export function StickyNoteView({
       selected={selected}
       canEdit={canEdit}
       canDrag={canDrag && !editing}
-      canResize={canResize && !editing}
-      canRotate={canRotate && !editing}
+      canResize={canResize}
+      canRotate={canRotate}
       dragOffset={dragOffset}
       zoom={zoom}
       minWidth={120}
@@ -103,10 +103,10 @@ export function StickyNoteView({
       className={`absolute flex flex-col overflow-visible rounded-md shadow-sm ${selected ? "ring-2 ring-teal-700" : ""}`}
       style={{ zIndex: sticky.zIndex, backgroundColor: stickyBackground(sticky.color) }}
       onSelect={onSelect}
-      onChange={onChange}
-      onTap={() => {
-        if (selected) {
-          beginEdit();
+      onChange={(next) => onChange({ ...next, text: editing ? textDraft : next.text })}
+      onTransformStart={() => {
+        if (editing && textDraft !== sticky.text) {
+          onChange({ ...sticky, text: textDraft });
         }
       }}
       onDragMove={onDragMove}
@@ -127,7 +127,15 @@ export function StickyNoteView({
             placeholder="Type here…"
             onChange={(event) => setTextDraft(event.target.value)}
             onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setTextDraft(sticky.text);
+                setEditing(false);
+                onEditEnd?.();
+              }
+            }}
             onBlur={commitEdit}
           />
         ) : (

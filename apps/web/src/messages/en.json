@@ -41,7 +41,7 @@
     "undo": "Undo",
     "redo": "Redo",
     "delete": "Delete",
-    "emptyHint": "Use Sticky or Text tool, or double-click empty canvas. Click a note again to type.",
+    "emptyHint": "Use Sticky or Text tool, or double-click empty canvas. Double-click a note to type; drag corners to scale.",
     "rect": "Rect",
     "ellipse": "Ellipse",
     "triangle": "Triangle",

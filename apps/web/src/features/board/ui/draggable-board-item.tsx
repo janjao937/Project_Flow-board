@@ -26,6 +26,8 @@ interface Props<T extends Box> {
   onChange: (next: T) => void;
   /** Click without drag — e.g. enter text edit. */
   onTap?: () => void;
+  /** Called before resize/rotate starts (e.g. flush text draft). */
+  onTransformStart?: () => void;
   /** Called while dragging; parent can move the whole selection. */
   onDragMove?: (dx: number, dy: number) => void;
   /** Called when a drag ends; parent should commit selection move. */
@@ -132,6 +134,7 @@ export function DraggableBoardItem<T extends Box>({
   onSelect,
   onChange,
   onTap,
+  onTransformStart,
   onDragMove,
   onDragEnd,
   children,
@@ -291,6 +294,8 @@ export function DraggableBoardItem<T extends Box>({
                   style={{ cursor: corner.cursor }}
                   onPointerDown={(event) => {
                     event.stopPropagation();
+                    event.preventDefault();
+                    onTransformStart?.();
                     onSelect(false);
                     resize.current = {
                       ox: event.clientX,
@@ -323,6 +328,8 @@ export function DraggableBoardItem<T extends Box>({
                 className="bg-background absolute left-1/2 top-0 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-[calc(100%+14px)] cursor-grab rounded-full border-2 border-teal-700"
                 onPointerDown={(event) => {
                   event.stopPropagation();
+                  event.preventDefault();
+                  onTransformStart?.();
                   onSelect(false);
                   const rect = rootRef.current?.getBoundingClientRect();
                   if (!rect) {
