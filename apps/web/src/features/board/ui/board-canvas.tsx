@@ -19,6 +19,7 @@ import {
 import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { alignItems, distributeItems, type AlignMode } from "../lib/align";
+import { connectorEndpoints } from "../lib/connector-geometry";
 import { exportBoardPdf, exportBoardPng } from "../lib/export-board";
 import { normalizeBoard } from "../lib/normalize-board";
 import { DraggableBoardItem } from "./draggable-board-item";
@@ -1630,10 +1631,13 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               if (!from || !to) {
                 return null;
               }
-              const x1 = from.x + from.width / 2;
-              const y1 = from.y + from.height / 2;
-              const x2 = to.x + to.width / 2;
-              const y2 = to.y + to.height / 2;
+              const fromOffset =
+                liveDrag && selectedIds.includes(from.id) ? liveDrag : { dx: 0, dy: 0 };
+              const toOffset = liveDrag && selectedIds.includes(to.id) ? liveDrag : { dx: 0, dy: 0 };
+              const { x1, y1, x2, y2 } = connectorEndpoints(
+                { ...from, x: from.x + fromOffset.dx, y: from.y + fromOffset.dy },
+                { ...to, x: to.x + toOffset.dx, y: to.y + toOffset.dy },
+              );
               const midX = (x1 + x2) / 2;
               const midY = (y1 + y2) / 2;
               const selected = selectedIds.includes(connector.id);

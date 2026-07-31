@@ -63,4 +63,6 @@ services:
     command: tunnel --no-autoupdate --url http://edge:80
     depends_on:
       - edge
-    restart: unless-stopped
+    # Avoid endless restart loops when Quick Tunnel returns 429.
+    # The start script stops cloudflared on rate-limit and tells you when to retry.
+    restart: on-failure

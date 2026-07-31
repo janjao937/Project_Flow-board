@@ -8,7 +8,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composeFile = path.join("docker", "docker-compose.trycloudflare.yml");
 const projectName = "flowboard-trycloudflare";
 const urlFile = path.join(root, "trycloudflare-url.txt");
+// Quick Tunnel hostnames look like random-words.trycloudflare.com.
+// Reject reserved hosts (e.g. api.trycloudflare.com) that appear in cloudflared logs.
 const urlPattern = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/gi;
+const reservedTrycloudflareHosts = new Set([
+  "api.trycloudflare.com",
+  "www.trycloudflare.com",
+  "trycloudflare.com",
+]);
 const isWin = process.platform === "win32";
 
 function dockerSync(args, options = {}) {
@@ -45,7 +52,33 @@ function extractUrl(text) {
   if (!matches?.length) {
     return null;
   }
-  return matches[matches.length - 1].replace(/\/$/, "");
+  for (let i = matches.length - 1; i >= 0; i -= 1) {
+    const url = matches[i].replace(/\/$/, "");
+    let host;
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
+    if (reservedTrycloudflareHosts.has(host)) {
+      continue;
+    }
+    // Real quick-tunnel hosts are multi-label random names, not short reserved ones.
+    if (!host.includes("-") && host.split(".")[0].length < 12) {
+      continue;
+    }
+    return url;
+  }
+  return null;
+}
+
+function detectRateLimit(text) {
+  const sample = String(text ?? "");
+  return (
+    sample.includes("429 Too Many Requests") ||
+    sample.includes("error code: 1015") ||
+    /rate.?limit/i.test(sample)
+  );
 }
 
 function printPublicUrl(url) {
@@ -95,11 +128,24 @@ function readCloudflaredLogs(sinceIso) {
 async function waitForPublicUrl(sinceIso, timeoutMs = 180_000) {
   const started = Date.now();
   let attempt = 0;
+  let rateLimitWarned = false;
   while (Date.now() - started < timeoutMs) {
     attempt += 1;
-    const url = extractUrl(readCloudflaredLogs(sinceIso));
+    const logs = readCloudflaredLogs(sinceIso);
+    const url = extractUrl(logs);
     if (url) {
-      return url;
+      return { url, rateLimited: false };
+    }
+    if (!rateLimitWarned && detectRateLimit(logs)) {
+      rateLimitWarned = true;
+      console.error("");
+      console.error("Cloudflare Quick Tunnel is rate-limiting this IP (HTTP 429 / error 1015).");
+      console.error("Stopping cloudflared so retries do not make the limit worse...");
+      dockerSync(composeArgs(["stop", "cloudflared"]), { stdio: "inherit" });
+      console.error("");
+      console.error("Wait 15–30 minutes, then run start-trycloudflare.bat again.");
+      console.error("Tip: avoid restarting the tunnel repeatedly; each start requests a new URL.");
+      return { url: null, rateLimited: true };
     }
     if (attempt === 1 || attempt % 5 === 0) {
       const waited = Math.round((Date.now() - started) / 1000);
@@ -107,7 +153,7 @@ async function waitForPublicUrl(sinceIso, timeoutMs = 180_000) {
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  return null;
+  return { url: null, rateLimited: false };
 }
 
 function shutdown() {
@@ -152,8 +198,11 @@ if (recreate.status !== 0) {
 
 console.log("\nLooking for new public URL in cloudflared logs (this run only)...\n");
 
-const url = await waitForPublicUrl(tunnelSince);
+const { url, rateLimited } = await waitForPublicUrl(tunnelSince);
 if (!url) {
+  if (rateLimited) {
+    process.exit(1);
+  }
   console.error("Could not find a trycloudflare.com URL yet.");
   console.error("Check manually with:");
   console.error(`  docker compose -p ${projectName} -f ${composeFile} logs cloudflared --since ${tunnelSince}`);
