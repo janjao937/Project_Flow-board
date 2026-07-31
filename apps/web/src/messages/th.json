@@ -194,7 +194,18 @@
     "hostEnded": "เจ้าของจบเซสชันแล้ว",
     "endedTitle": "เซสชันสิ้นสุดแล้ว",
     "backHome": "กลับหน้าแรก",
-    "joinAgain": "เข้าร่วมใหม่"
+    "joinAgain": "เข้าร่วมใหม่",
+    "leaveConfirmTitle_new": "เริ่ม workflow ใหม่หรือไม่?",
+    "leaveConfirmTitle_join": "ออกจากเซสชันเพื่อไปเข้าร่วมอันอื่นหรือไม่?",
+    "leaveConfirmTitle_open": "ออกจากเซสชันเพื่อเปิดไฟล์หรือไม่?",
+    "leaveConfirmBody_new_host": "คุณกำลังเป็น host ของเซสชันสด การเริ่ม workflow ใหม่จะจบเซสชันสำหรับทุกคน",
+    "leaveConfirmBody_new_guest": "คุณกำลังเข้าร่วมเซสชันสด การเริ่ม workflow ใหม่จะตัดการเชื่อมต่อจากเซสชันนี้",
+    "leaveConfirmBody_join_host": "คุณกำลังเป็น host ของเซสชันสด การไป join อันอื่นจะจบเซสชันนี้สำหรับทุกคน",
+    "leaveConfirmBody_join_guest": "คุณอยู่ในเซสชันสดอยู่แล้ว การไป join อันอื่นจะตัดการเชื่อมต่อจากเซสชันปัจจุบัน",
+    "leaveConfirmBody_open_host": "คุณกำลังเป็น host ของเซสชันสด การเปิดไฟล์จะจบเซสชันสำหรับทุกคน",
+    "leaveConfirmBody_open_guest": "คุณกำลังเข้าร่วมเซสชันสด การเปิดไฟล์จะตัดการเชื่อมต่อจากเซสชันนี้",
+    "leaveConfirmOk": "ดำเนินการต่อ",
+    "leaveConfirmCancel": "ยกเลิก"
   },
   "errors": {
     "validation": "ข้อมูลบางช่องไม่ถูกต้อง",

@@ -194,7 +194,18 @@
     "hostEnded": "The host ended this session.",
     "endedTitle": "Session ended",
     "backHome": "Back home",
-    "joinAgain": "Join again"
+    "joinAgain": "Join again",
+    "leaveConfirmTitle_new": "Start a new workflow?",
+    "leaveConfirmTitle_join": "Leave session to join another?",
+    "leaveConfirmTitle_open": "Leave session to open a file?",
+    "leaveConfirmBody_new_host": "You are hosting a live session. Starting a new workflow will end the session for everyone.",
+    "leaveConfirmBody_new_guest": "You are joined to a live session. Starting a new workflow will disconnect you from it.",
+    "leaveConfirmBody_join_host": "You are hosting a live session. Joining another session will end this one for everyone.",
+    "leaveConfirmBody_join_guest": "You are already in a live session. Joining another will disconnect you from the current one.",
+    "leaveConfirmBody_open_host": "You are hosting a live session. Opening a file will end the session for everyone.",
+    "leaveConfirmBody_open_guest": "You are joined to a live session. Opening a file will disconnect you from it.",
+    "leaveConfirmOk": "Continue",
+    "leaveConfirmCancel": "Cancel"
   },
   "errors": {
     "validation": "Some fields are invalid.",

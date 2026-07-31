@@ -5,6 +5,7 @@ import { AppProviders } from "@/components/providers/app-providers";
 import { AppErrorBoundary } from "@/components/providers/error-boundary";
 import { AppHeader } from "@/components/shell/app-header";
 import { SessionRealtimeBridge } from "@/features/join/ui/session-realtime-bridge";
+import { LeaveSessionConfirmHost } from "@/features/join/ui/leave-session-confirm-host";
 import { PassphrasePromptHost } from "@/features/workflow/ui/passphrase-prompt-host";
 import { routing } from "@/i18n/routing";
 
@@ -35,6 +36,7 @@ export default async function LocaleLayout({
             <AppHeader />
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>
             <SessionRealtimeBridge />
+            <LeaveSessionConfirmHost />
             <PassphrasePromptHost />
           </div>
         </AppErrorBoundary>
