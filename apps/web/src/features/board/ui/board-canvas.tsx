@@ -1513,10 +1513,10 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               key={sticky.id}
               sticky={sticky}
               selected={selectedIds.includes(sticky.id) || connectorFrom === sticky.id}
-              canEdit={canEdit && (tool === "select" || tool === "connector")}
-              canDrag={tool === "select"}
-              canResize={tool === "select"}
-              canRotate={tool === "select"}
+              canEdit={canEdit && (tool === "select" || tool === "connector" || tool === "sticky")}
+              canDrag={tool === "select" || tool === "sticky"}
+              canResize={tool === "select" || tool === "sticky"}
+              canRotate={tool === "select" || tool === "sticky"}
               autoEdit={editObjectId === sticky.id}
               dragOffset={selectedIds.includes(sticky.id) ? liveDrag : null}
               zoom={camera.zoom}
