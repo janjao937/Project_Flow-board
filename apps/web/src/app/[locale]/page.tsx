@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -12,7 +11,7 @@ import {
 } from "@/features/workflow/infrastructure/recent";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { runAfterLeaveSession } from "@/features/join/application/ensure-leave-session";
-import { flowPackErrorMessageKey } from "@/features/workflow/lib/flow-pack-error";
+import { openWorkflowAfterLeaveSession } from "@/features/join/application/open-after-leave";
 
 export default function HomePage() {
   const t = useTranslations("home");
@@ -59,14 +58,11 @@ export default function HomePage() {
             size="lg"
             variant="outline"
             onClick={() => {
-              void openFromDisk()
-                .then(() => router.push("/workspace"))
-                .catch((error) => {
-                  if ((error as Error)?.message === "cancelled") {
-                    return;
-                  }
-                  toast.error(te(flowPackErrorMessageKey(error)));
-                });
+              void openWorkflowAfterLeaveSession({
+                translateError: te,
+                openFromDisk,
+                navigateToWorkspace: () => router.push("/workspace"),
+              });
             }}
           >
             {t("ctaOpen")}

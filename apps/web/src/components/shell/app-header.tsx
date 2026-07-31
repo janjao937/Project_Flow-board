@@ -9,6 +9,7 @@ import { LocaleSwitcher, ThemeSwitcher } from "@/components/shell/preference-swi
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { useSessionStore } from "@/features/join/store/session-store";
 import { runAfterLeaveSession } from "@/features/join/application/ensure-leave-session";
+import { openWorkflowAfterLeaveSession } from "@/features/join/application/open-after-leave";
 import { flowPackErrorMessageKey } from "@/features/workflow/lib/flow-pack-error";
 
 export function AppHeader() {
@@ -87,14 +88,11 @@ export function AppHeader() {
             size="sm"
             variant="ghost"
             onClick={() => {
-              void openFromDisk()
-                .then(() => router.push("/workspace"))
-                .catch((error) => {
-                  if ((error as Error)?.message === "cancelled") {
-                    return;
-                  }
-                  toast.error(te(flowPackErrorMessageKey(error)));
-                });
+              void openWorkflowAfterLeaveSession({
+                translateError: te,
+                openFromDisk,
+                navigateToWorkspace: () => router.push("/workspace"),
+              });
             }}
           >
             {t("open")}
@@ -206,14 +204,11 @@ function MobileActions() {
         size="sm"
         variant="outline"
         onClick={() => {
-          void openFromDisk()
-            .then(() => router.push("/workspace"))
-            .catch((error) => {
-              if ((error as Error)?.message === "cancelled") {
-                return;
-              }
-              toast.error(te(flowPackErrorMessageKey(error)));
-            });
+          void openWorkflowAfterLeaveSession({
+            translateError: te,
+            openFromDisk,
+            navigateToWorkspace: () => router.push("/workspace"),
+          });
         }}
       >
         {t("open")}
