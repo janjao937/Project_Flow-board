@@ -6,24 +6,13 @@ export function normalizeBoard(current: BoardState | null | undefined): BoardSta
   if (!current) {
     return EMPTY_BOARD;
   }
-  if (
-    current.stickies &&
-    current.shapes &&
-    current.connectors &&
-    current.images &&
-    current.frames &&
-    current.strokes &&
-    current.groups &&
-    typeof current.gridEnabled === "boolean"
-  ) {
-    return current;
-  }
   return {
     stickies: current.stickies ?? [],
     shapes: current.shapes ?? [],
     connectors: current.connectors ?? [],
     images: current.images ?? [],
     frames: current.frames ?? [],
+    texts: current.texts ?? [],
     strokes: current.strokes ?? [],
     groups: current.groups ?? [],
     gridEnabled: current.gridEnabled ?? false,

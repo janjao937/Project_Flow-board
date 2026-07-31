@@ -21,6 +21,7 @@
     "headline": "Design the work. Keep the file.",
     "sub": "Create a workflow, sketch on a board, organize tasks, and save everything as a .flowpkg you can move or share.",
     "ctaNew": "New workflow",
+    "ctaJoin": "Join session",
     "ctaOpen": "Open .flowpkg",
     "recent": "Recent"
   },
@@ -34,12 +35,13 @@
   },
   "board": {
     "addSticky": "Sticky",
+    "addText": "Text",
     "select": "Select",
     "pan": "Pan",
     "undo": "Undo",
     "redo": "Redo",
     "delete": "Delete",
-    "emptyHint": "Double-click empty canvas or use Sticky tool to add a note. Drag to move, double-click a note to edit.",
+    "emptyHint": "Use Sticky or Text tool, or double-click empty canvas. Click a note again to type.",
     "rect": "Rect",
     "ellipse": "Ellipse",
     "triangle": "Triangle",

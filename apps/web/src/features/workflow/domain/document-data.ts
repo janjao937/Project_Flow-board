@@ -65,6 +65,21 @@ export interface BoardFrame {
   zIndex: number;
 }
 
+export interface BoardText {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Degrees clockwise. */
+  rotation?: number;
+  text: string;
+  fontSize: number;
+  color: string;
+  zIndex: number;
+  groupId?: string | null;
+}
+
 export interface FreehandStroke {
   id: string;
   points: Array<{ x: number; y: number }>;
@@ -85,6 +100,7 @@ export interface BoardState {
   connectors: BoardConnector[];
   images: BoardImage[];
   frames: BoardFrame[];
+  texts: BoardText[];
   strokes: FreehandStroke[];
   groups: BoardGroup[];
   gridEnabled: boolean;
@@ -179,6 +195,7 @@ export function createEmptyBoard(): BoardState {
     connectors: [],
     images: [],
     frames: [],
+    texts: [],
     strokes: [],
     groups: [],
     gridEnabled: false,
@@ -289,6 +306,7 @@ export function decodeDocumentData(bytes: Uint8Array): WorkflowDocumentData {
       connectors: board.connectors ?? [],
       images: board.images ?? [],
       frames: board.frames ?? [],
+      texts: board.texts ?? [],
       strokes: board.strokes ?? [],
       groups: board.groups ?? [],
       gridEnabled: board.gridEnabled ?? false,

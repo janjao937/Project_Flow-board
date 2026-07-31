@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  STICKY_COLOR_HEX,
-  type StickyColor,
-  type StickyNote,
-} from "@/features/workflow/domain/document-data";
+import type { BoardText } from "@/features/workflow/domain/document-data";
 import { DraggableBoardItem } from "./draggable-board-item";
 
-const NAMED = new Set<string>(Object.keys(STICKY_COLOR_HEX));
-
 interface Props {
-  sticky: StickyNote;
+  textBox: BoardText;
   selected: boolean;
   canEdit: boolean;
   canDrag?: boolean;
@@ -21,21 +15,14 @@ interface Props {
   dragOffset?: { dx: number; dy: number } | null;
   zoom: number;
   onSelect: (additive: boolean) => void;
-  onChange: (next: StickyNote) => void;
+  onChange: (next: BoardText) => void;
   onDragMove?: (dx: number, dy: number) => void;
   onDragEnd?: (dx: number, dy: number) => void;
   onEditEnd?: () => void;
 }
 
-function stickyBackground(color: string): string {
-  if (NAMED.has(color)) {
-    return STICKY_COLOR_HEX[color as StickyColor];
-  }
-  return color.startsWith("#") || color.startsWith("rgb") ? color : STICKY_COLOR_HEX.butter;
-}
-
-export function StickyNoteView({
-  sticky,
+export function TextBoxView({
+  textBox,
   selected,
   canEdit,
   canDrag = true,
@@ -51,13 +38,13 @@ export function StickyNoteView({
   onEditEnd,
 }: Props) {
   const [editing, setEditing] = useState(false);
-  const [textDraft, setTextDraft] = useState(sticky.text);
+  const [textDraft, setTextDraft] = useState(textBox.text);
 
   useEffect(() => {
     if (!editing) {
-      setTextDraft(sticky.text);
+      setTextDraft(textBox.text);
     }
-  }, [sticky.text, editing]);
+  }, [textBox.text, editing]);
 
   useEffect(() => {
     if (!selected) {
@@ -76,13 +63,13 @@ export function StickyNoteView({
       return;
     }
     onSelect(false);
-    setTextDraft(sticky.text);
+    setTextDraft(textBox.text);
     setEditing(true);
   };
 
   const commitEdit = () => {
-    if (textDraft !== sticky.text) {
-      onChange({ ...sticky, text: textDraft });
+    if (textDraft !== textBox.text) {
+      onChange({ ...textBox, text: textDraft });
     }
     setEditing(false);
     onEditEnd?.();
@@ -90,7 +77,7 @@ export function StickyNoteView({
 
   return (
     <DraggableBoardItem
-      item={sticky}
+      item={textBox}
       selected={selected}
       canEdit={canEdit}
       canDrag={canDrag && !editing}
@@ -98,10 +85,10 @@ export function StickyNoteView({
       canRotate={canRotate && !editing}
       dragOffset={dragOffset}
       zoom={zoom}
-      minWidth={120}
-      minHeight={100}
-      className={`absolute flex flex-col overflow-visible rounded-md shadow-sm ${selected ? "ring-2 ring-teal-700" : ""}`}
-      style={{ zIndex: sticky.zIndex, backgroundColor: stickyBackground(sticky.color) }}
+      minWidth={80}
+      minHeight={36}
+      className={`absolute overflow-visible ${selected ? "ring-2 ring-teal-700" : ""}`}
+      style={{ zIndex: textBox.zIndex }}
       onSelect={onSelect}
       onChange={onChange}
       onTap={() => {
@@ -113,7 +100,7 @@ export function StickyNoteView({
       onDragEnd={onDragEnd}
     >
       <div
-        className="h-full w-full overflow-hidden rounded-md"
+        className="h-full w-full overflow-hidden"
         onDoubleClick={(event) => {
           event.stopPropagation();
           beginEdit();
@@ -122,17 +109,21 @@ export function StickyNoteView({
         {editing ? (
           <textarea
             autoFocus
-            className="h-full w-full resize-none bg-transparent p-3 text-sm text-zinc-900 outline-none"
+            className="h-full w-full resize-none bg-transparent p-2 outline-none"
+            style={{ color: textBox.color, fontSize: textBox.fontSize }}
             value={textDraft}
-            placeholder="Type here…"
+            placeholder="Type text…"
             onChange={(event) => setTextDraft(event.target.value)}
             onPointerDown={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
             onBlur={commitEdit}
           />
         ) : (
-          <div className="h-full w-full overflow-hidden p-3 text-sm whitespace-pre-wrap text-zinc-900">
-            {sticky.text || " "}
+          <div
+            className="h-full w-full overflow-hidden p-2 whitespace-pre-wrap"
+            style={{ color: textBox.color, fontSize: textBox.fontSize }}
+          >
+            {textBox.text || " "}
           </div>
         )}
       </div>

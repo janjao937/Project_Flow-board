@@ -60,21 +60,44 @@ function printPublicUrl(url) {
   console.log(`Saved to: ${urlFile}\n`);
 }
 
-function saveUrl(url) {
-  fs.writeFileSync(urlFile, `${url}\n`, "utf8");
+function saveUrl(url, meta = {}) {
+  const updatedAt = new Date().toISOString();
+  const body = [
+    url,
+    "",
+    `updatedAt=${updatedAt}`,
+    meta.note ? `note=${meta.note}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  fs.writeFileSync(urlFile, `${body}\n`, "utf8");
 }
 
-function readCloudflaredLogs() {
-  const result = dockerSync(composeArgs(["logs", "cloudflared", "--no-color"]));
+function saveWaiting() {
+  const updatedAt = new Date().toISOString();
+  fs.writeFileSync(
+    urlFile,
+    [`waiting for trycloudflare URL...`, "", `updatedAt=${updatedAt}`, `status=waiting`].join("\n") +
+      "\n",
+    "utf8",
+  );
+}
+
+function readCloudflaredLogs(sinceIso) {
+  const args = composeArgs(["logs", "cloudflared", "--no-color"]);
+  if (sinceIso) {
+    args.push("--since", sinceIso);
+  }
+  const result = dockerSync(args);
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
 
-async function waitForPublicUrl(timeoutMs = 180_000) {
+async function waitForPublicUrl(sinceIso, timeoutMs = 180_000) {
   const started = Date.now();
   let attempt = 0;
   while (Date.now() - started < timeoutMs) {
     attempt += 1;
-    const url = extractUrl(readCloudflaredLogs());
+    const url = extractUrl(readCloudflaredLogs(sinceIso));
     if (url) {
       return url;
     }
@@ -104,6 +127,9 @@ console.log("Starting Flowboard (detached): web + api + nats + caddy + tunnel");
 console.log("No custom domain needed — Cloudflare assigns a random *.trycloudflare.com URL.");
 console.log("First run may take a few minutes to build images.\n");
 
+saveWaiting();
+console.log(`URL file reset: ${urlFile}`);
+
 const up = dockerSync(composeArgs(["up", "--build", "-d"]), {
   stdio: "inherit",
 });
@@ -112,18 +138,30 @@ if (up.status !== 0) {
   process.exit(up.status ?? 1);
 }
 
-console.log("\nStack containers are up. Looking for public URL in cloudflared logs...\n");
+// Always recreate the quick tunnel so each start gets a fresh public URL
+// (otherwise cloudflared keeps the old container/logs and the txt file looks unchanged).
+console.log("\nRecreating cloudflared tunnel for a fresh public URL...");
+const tunnelSince = new Date().toISOString();
+const recreate = dockerSync(composeArgs(["up", "-d", "--force-recreate", "--no-deps", "cloudflared"]), {
+  stdio: "inherit",
+});
+if (recreate.status !== 0) {
+  console.error("\nFailed to recreate cloudflared tunnel.");
+  process.exit(recreate.status ?? 1);
+}
 
-const url = await waitForPublicUrl();
+console.log("\nLooking for new public URL in cloudflared logs (this run only)...\n");
+
+const url = await waitForPublicUrl(tunnelSince);
 if (!url) {
   console.error("Could not find a trycloudflare.com URL yet.");
   console.error("Check manually with:");
-  console.error(`  docker compose -p ${projectName} -f ${composeFile} logs cloudflared`);
+  console.error(`  docker compose -p ${projectName} -f ${composeFile} logs cloudflared --since ${tunnelSince}`);
   console.error("Or run: show-trycloudflare-url.bat");
   process.exit(1);
 }
 
-saveUrl(url);
+saveUrl(url, { note: "fresh-tunnel" });
 printPublicUrl(url);
 
 process.on("SIGINT", shutdown);

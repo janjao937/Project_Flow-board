@@ -7,6 +7,7 @@ function boundsOf(board: BoardState) {
     ...board.shapes,
     ...board.images,
     ...board.frames,
+    ...(board.texts ?? []),
     ...board.strokes.flatMap((stroke) =>
       stroke.points.map((point) => ({ x: point.x, y: point.y, width: 1, height: 1 })),
     ),
@@ -102,6 +103,19 @@ function paintBoard(board: BoardState, canvas: HTMLCanvasElement) {
     const lines = sticky.text.split("\n").slice(0, 8);
     lines.forEach((line, index) => {
       ctx.fillText(line.slice(0, 28), sticky.x - minX + 10, sticky.y - minY + 24 + index * 14);
+    });
+  }
+
+  for (const textBox of board.texts ?? []) {
+    ctx.fillStyle = textBox.color || "#1f2937";
+    ctx.font = `${textBox.fontSize || 18}px sans-serif`;
+    const lines = textBox.text.split("\n").slice(0, 8);
+    lines.forEach((line, index) => {
+      ctx.fillText(
+        line.slice(0, 40),
+        textBox.x - minX + 8,
+        textBox.y - minY + (textBox.fontSize || 18) + index * ((textBox.fontSize || 18) + 4),
+      );
     });
   }
 }

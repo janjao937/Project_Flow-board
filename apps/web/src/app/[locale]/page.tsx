@@ -41,6 +41,9 @@ export default function HomePage() {
           >
             {t("ctaNew")}
           </Button>
+          <Button size="lg" variant="secondary" onClick={() => router.push("/join")}>
+            {t("ctaJoin")}
+          </Button>
           <Button
             size="lg"
             variant="outline"

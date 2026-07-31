@@ -39,8 +39,9 @@ echo โหมดนี้ไม่ต้องมีโดเมนของอ
 echo Cloudflare จะสุ่ม URL: https://xxxx.trycloudflare.com
 echo.
 echo กำลัง build/start แบบเงียบ ^(ไม่โชว์ spam /ready ของ API^)
+echo - ทุกครั้งจะ recreate tunnel → ได้ URL ใหม่
+echo - ไฟล์ trycloudflare-url.txt จะถูกรีเซ็ตแล้วเขียนทับเมื่อได้ลิงก์
 echo - รอจนเห็นกล่อง PUBLIC URL
-echo - หรือเปิดไฟล์ trycloudflare-url.txt
 echo - ดูลิงก์ทีหลัง: show-trycloudflare-url.bat
 echo - หยุด: Ctrl+C หรือ stop-trycloudflare.bat
 echo.

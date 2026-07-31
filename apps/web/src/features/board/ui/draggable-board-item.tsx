@@ -24,6 +24,8 @@ interface Props<T extends Box> {
   style?: CSSProperties;
   onSelect: (additive: boolean) => void;
   onChange: (next: T) => void;
+  /** Click without drag — e.g. enter text edit. */
+  onTap?: () => void;
   /** Called while dragging; parent can move the whole selection. */
   onDragMove?: (dx: number, dy: number) => void;
   /** Called when a drag ends; parent should commit selection move. */
@@ -129,6 +131,7 @@ export function DraggableBoardItem<T extends Box>({
   style,
   onSelect,
   onChange,
+  onTap,
   onDragMove,
   onDragEnd,
   children,
@@ -136,7 +139,7 @@ export function DraggableBoardItem<T extends Box>({
   const [draft, setDraft] = useState(item);
   const draftRef = useRef(item);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const drag = useRef<{ ox: number; oy: number } | null>(null);
+  const drag = useRef<{ ox: number; oy: number; capturing: boolean } | null>(null);
   const resize = useRef<{
     ox: number;
     oy: number;
@@ -195,19 +198,25 @@ export function DraggableBoardItem<T extends Box>({
         if (!canDrag) {
           return;
         }
-        drag.current = { ox: event.clientX, oy: event.clientY };
+        // Delay pointer capture until the pointer actually moves — keeps double-click / tap-to-edit working.
+        drag.current = { ox: event.clientX, oy: event.clientY, capturing: false };
         lastDelta.current = { dx: 0, dy: 0 };
         moved.current = false;
-        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
         const activeDrag = drag.current;
         if (activeDrag) {
           const dx = (event.clientX - activeDrag.ox) / zoom;
           const dy = (event.clientY - activeDrag.oy) / zoom;
-          if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+          if (!activeDrag.capturing && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+            activeDrag.capturing = true;
             moved.current = true;
+            rootRef.current?.setPointerCapture(event.pointerId);
           }
+          if (!activeDrag.capturing) {
+            return;
+          }
+          moved.current = true;
           lastDelta.current = { dx, dy };
           if (onDragMove) {
             onDragMove(dx, dy);
@@ -246,7 +255,9 @@ export function DraggableBoardItem<T extends Box>({
         }
       }}
       onPointerUp={() => {
-        if (moved.current) {
+        const wasDrag = Boolean(drag.current);
+        const didMove = moved.current;
+        if (didMove) {
           if (drag.current) {
             const { dx, dy } = lastDelta.current;
             if (onDragEnd) {
@@ -257,6 +268,8 @@ export function DraggableBoardItem<T extends Box>({
           } else if (resize.current || rotate.current) {
             onChange(draftRef.current);
           }
+        } else if (wasDrag && onTap) {
+          onTap();
         }
         drag.current = null;
         resize.current = null;

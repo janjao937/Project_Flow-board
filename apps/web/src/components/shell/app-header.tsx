@@ -168,6 +168,9 @@ function MobileActions() {
 
   return (
     <div className="border-border flex gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
+      <Button size="sm" variant="default" onClick={() => router.push("/join")}>
+        {t("join")}
+      </Button>
       <Button
         size="sm"
         variant="outline"

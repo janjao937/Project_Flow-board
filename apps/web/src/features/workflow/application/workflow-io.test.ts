@@ -36,6 +36,7 @@ describe("workflow-io", () => {
       connectors: [],
       images: [],
       frames: [],
+      texts: [],
       strokes: [],
       groups: [],
       gridEnabled: false,

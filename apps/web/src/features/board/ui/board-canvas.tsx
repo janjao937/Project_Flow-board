@@ -10,6 +10,7 @@ import {
   snapToGrid,
   type BoardFrame,
   type BoardShape,
+  type BoardText,
   type FreehandStroke,
   type ShapeKind,
   type StickyColor,
@@ -19,11 +20,12 @@ import { useSessionStore } from "@/features/join/store/session-store";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { alignItems, distributeItems, type AlignMode } from "../lib/align";
 import { exportBoardPdf, exportBoardPng } from "../lib/export-board";
-import { EMPTY_BOARD, normalizeBoard } from "../lib/normalize-board";
+import { normalizeBoard } from "../lib/normalize-board";
 import { DraggableBoardItem } from "./draggable-board-item";
 import { StickyNoteView } from "./sticky-note-view";
+import { TextBoxView } from "./text-box-view";
 
-type Tool = "select" | "pan" | "sticky" | ShapeKind | "image" | "connector" | "frame" | "freehand";
+type Tool = "select" | "pan" | "sticky" | "text" | ShapeKind | "image" | "connector" | "frame" | "freehand";
 
 const PEN_COLORS = [
   { id: "teal", value: "#0f766e" },
@@ -211,7 +213,8 @@ const ZOOM_STEP = 1.15;
 
 export function BoardCanvas({ pageId }: { pageId: string }) {
   const t = useTranslations("board");
-  const board = useWorkflowStore((s) => s.data?.boards[pageId] ?? EMPTY_BOARD);
+  const rawBoard = useWorkflowStore((s) => s.data?.boards[pageId]);
+  const board = useMemo(() => normalizeBoard(rawBoard), [rawBoard]);
   const updateBoard = useWorkflowStore((s) => s.updateBoard);
   const undo = useWorkflowStore((s) => s.undo);
   const redo = useWorkflowStore((s) => s.redo);
@@ -227,6 +230,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
   const [showMinimap, setShowMinimap] = useState(true);
   const [penColor, setPenColor] = useState<string>(PEN_COLORS[0]!.value);
   const [liveDrag, setLiveDrag] = useState<{ dx: number; dy: number } | null>(null);
+  const [editObjectId, setEditObjectId] = useState<string | null>(null);
   const selectedIdsRef = useRef(selectedIds);
   selectedIdsRef.current = selectedIds;
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
@@ -241,14 +245,21 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
     () => board.shapes.filter((item) => selectedIds.includes(item.id)),
     [board.shapes, selectedIds],
   );
+  const selectedTexts = useMemo(
+    () => board.texts.filter((item) => selectedIds.includes(item.id)),
+    [board.texts, selectedIds],
+  );
   const selectedStrokes = useMemo(
     () => board.strokes.filter((item) => selectedIds.includes(item.id)),
     [board.strokes, selectedIds],
   );
-  const showObjectColor = canEdit && tool === "select" && (selectedStickies.length > 0 || selectedShapes.length > 0 || selectedStrokes.length > 0);
+  const showObjectColor =
+    canEdit &&
+    tool === "select" &&
+    (selectedStickies.length > 0 || selectedShapes.length > 0 || selectedStrokes.length > 0 || selectedTexts.length > 0);
 
   const contentBounds = useMemo(() => {
-    const boxes = [...board.stickies, ...board.shapes, ...board.images, ...board.frames];
+    const boxes = [...board.stickies, ...board.shapes, ...board.images, ...board.frames, ...board.texts];
     if (boxes.length === 0) {
       return { minX: -200, minY: -200, maxX: 800, maxY: 600 };
     }
@@ -258,7 +269,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       maxX: Math.max(...boxes.map((box) => box.x + box.width)) + 80,
       maxY: Math.max(...boxes.map((box) => box.y + box.height)) + 80,
     };
-  }, [board.frames, board.images, board.shapes, board.stickies]);
+  }, [board.frames, board.images, board.shapes, board.stickies, board.texts]);
 
   const screenToWorld = (clientX: number, clientY: number) => {
     const rect = viewportRef.current?.getBoundingClientRect();
@@ -272,7 +283,13 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
   };
 
   const nextZ = () =>
-    board.stickies.length + board.shapes.length + board.images.length + board.frames.length + board.strokes.length + 1;
+    board.stickies.length +
+    board.shapes.length +
+    board.images.length +
+    board.frames.length +
+    board.texts.length +
+    board.strokes.length +
+    1;
 
   const addSticky = useCallback(
     (x: number, y: number) => {
@@ -295,6 +312,36 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         return { ...next, stickies: [...next.stickies, sticky] };
       });
       setSelectedIds([sticky.id]);
+      setEditObjectId(sticky.id);
+      setTool("select");
+    },
+    [board.gridEnabled, canEdit, pageId, updateBoard],
+  );
+
+  const addTextBox = useCallback(
+    (x: number, y: number) => {
+      if (!canEdit) {
+        return;
+      }
+      const textBox: BoardText = {
+        id: crypto.randomUUID(),
+        x: snapToGrid(x, board.gridEnabled),
+        y: snapToGrid(y, board.gridEnabled),
+        width: 220,
+        height: 64,
+        rotation: 0,
+        text: "",
+        fontSize: 18,
+        color: "#1f2937",
+        zIndex: nextZ(),
+      };
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return { ...next, texts: [...next.texts, textBox] };
+      });
+      setSelectedIds([textBox.id]);
+      setEditObjectId(textBox.id);
+      setTool("select");
     },
     [board.gridEnabled, canEdit, pageId, updateBoard],
   );
@@ -468,6 +515,23 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
     [canEdit, pageId, selectedStrokes, updateBoard],
   );
 
+  const applyTextColor = useCallback(
+    (hex: string) => {
+      if (!canEdit || selectedTexts.length === 0) {
+        return;
+      }
+      const ids = new Set(selectedTexts.map((item) => item.id));
+      updateBoard(pageId, (current) => {
+        const next = normalizeBoard(current);
+        return {
+          ...next,
+          texts: next.texts.map((item) => (ids.has(item.id) ? { ...item, color: hex } : item)),
+        };
+      });
+    },
+    [canEdit, pageId, selectedTexts, updateBoard],
+  );
+
   const handleConnectSelect = useCallback(
     (targetId: string) => {
       if (!connectorFrom) {
@@ -584,7 +648,9 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
       return;
     }
     const memberIds = selectedIds.filter((id) =>
-      [...board.stickies, ...board.shapes, ...board.images, ...board.strokes].some((item) => item.id === id),
+      [...board.stickies, ...board.shapes, ...board.images, ...board.texts, ...board.strokes].some(
+        (item) => item.id === id,
+      ),
     );
     if (memberIds.length < 2) {
       return;
@@ -611,6 +677,9 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         images: next.images.map((item) =>
           memberSet.has(item.id) ? { ...item, groupId } : item,
         ),
+        texts: next.texts.map((item) =>
+          memberSet.has(item.id) ? { ...item, groupId } : item,
+        ),
         strokes: next.strokes.map((item) =>
           memberSet.has(item.id) ? { ...item, groupId } : item,
         ),
@@ -631,6 +700,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           next.stickies.find((item) => item.id === id) ??
           next.shapes.find((item) => item.id === id) ??
           next.images.find((item) => item.id === id) ??
+          next.texts.find((item) => item.id === id) ??
           next.strokes.find((item) => item.id === id);
         if (hit?.groupId) {
           groupIds.add(hit.groupId);
@@ -655,6 +725,9 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         images: next.images.map((item) =>
           item.groupId && groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
         ),
+        texts: next.texts.map((item) =>
+          item.groupId && groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
+        ),
         strokes: next.strokes.map((item) =>
           item.groupId && groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
         ),
@@ -668,6 +741,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         board.stickies.find((item) => item.id === itemId) ??
         board.shapes.find((item) => item.id === itemId) ??
         board.images.find((item) => item.id === itemId) ??
+        board.texts.find((item) => item.id === itemId) ??
         board.strokes.find((item) => item.id === itemId);
       const groupId = hit?.groupId ?? board.groups.find((group) => group.memberIds.includes(itemId))?.id;
       if (!groupId) {
@@ -681,10 +755,11 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         ...board.stickies.filter((item) => item.groupId === groupId).map((item) => item.id),
         ...board.shapes.filter((item) => item.groupId === groupId).map((item) => item.id),
         ...board.images.filter((item) => item.groupId === groupId).map((item) => item.id),
+        ...board.texts.filter((item) => item.groupId === groupId).map((item) => item.id),
         ...board.strokes.filter((item) => item.groupId === groupId).map((item) => item.id),
       ];
     },
-    [board.groups, board.images, board.shapes, board.stickies, board.strokes],
+    [board.groups, board.images, board.shapes, board.stickies, board.strokes, board.texts],
   );
 
   const selectBoardItem = useCallback(
@@ -731,6 +806,9 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             ids.has(item.id) ? { ...item, x: snapX(item.x + dx), y: snapY(item.y + dy) } : item,
           ),
           frames: next.frames.map((item) =>
+            ids.has(item.id) ? { ...item, x: snapX(item.x + dx), y: snapY(item.y + dy) } : item,
+          ),
+          texts: next.texts.map((item) =>
             ids.has(item.id) ? { ...item, x: snapX(item.x + dx), y: snapY(item.y + dy) } : item,
           ),
           strokes: next.strokes.map((item) =>
@@ -828,6 +906,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             shapes: next.shapes.filter((item) => !selectedIds.includes(item.id)),
             images: next.images.filter((item) => !selectedIds.includes(item.id)),
             frames: next.frames.filter((item) => !selectedIds.includes(item.id)),
+            texts: next.texts.filter((item) => !selectedIds.includes(item.id)),
             strokes: next.strokes.filter((item) => !selectedIds.includes(item.id)),
             connectors: next.connectors.filter(
               (item) =>
@@ -867,6 +946,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             ["select", t("select")],
             ["pan", t("pan")],
             ["sticky", t("addSticky")],
+            ["text", t("addText")],
             ["rect", t("rect")],
             ["ellipse", t("ellipse")],
             ["triangle", t("triangle")],
@@ -1022,6 +1102,17 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 pickerLabel={t("penRgbPicker")}
               />
             ) : null}
+            {selectedTexts.length > 0 ? (
+              <RgbColorControls
+                label={t("objectFill")}
+                value={selectedTexts[0]!.color}
+                presets={PEN_COLORS}
+                disabled={!canEdit}
+                onChange={applyTextColor}
+                channelLabel={(channel) => t(`penRgb.${channel}`)}
+                pickerLabel={t("penRgbPicker")}
+              />
+            ) : null}
           </>
         ) : null}
         <div className="ml-auto flex gap-1">
@@ -1129,7 +1220,10 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
           const world = screenToWorld(event.clientX, event.clientY);
           if (tool === "sticky") {
             addSticky(world.x - 90, world.y - 80);
-            setTool("select");
+            return;
+          }
+          if (tool === "text") {
+            addTextBox(world.x - 110, world.y - 32);
             return;
           }
           if (tool === "frame") {
@@ -1422,6 +1516,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               canDrag={tool === "select"}
               canResize={tool === "select"}
               canRotate={tool === "select"}
+              autoEdit={editObjectId === sticky.id}
               dragOffset={selectedIds.includes(sticky.id) ? liveDrag : null}
               zoom={camera.zoom}
               onSelect={(additive) => {
@@ -1433,6 +1528,7 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
               }}
               onDragMove={handleItemDragMove}
               onDragEnd={handleItemDragEnd}
+              onEditEnd={() => setEditObjectId((id) => (id === sticky.id ? null : id))}
               onChange={(nextSticky) => {
                 if (!canEdit) {
                   return;
@@ -1459,6 +1555,54 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
             />
           ))}
 
+          {board.texts.map((textBox) => (
+            <TextBoxView
+              key={textBox.id}
+              textBox={textBox}
+              selected={selectedIds.includes(textBox.id) || connectorFrom === textBox.id}
+              canEdit={canEdit && (tool === "select" || tool === "connector")}
+              canDrag={tool === "select"}
+              canResize={tool === "select"}
+              canRotate={tool === "select"}
+              autoEdit={editObjectId === textBox.id}
+              dragOffset={selectedIds.includes(textBox.id) ? liveDrag : null}
+              zoom={camera.zoom}
+              onSelect={(additive) => {
+                if (tool === "connector") {
+                  handleConnectSelect(textBox.id);
+                  return;
+                }
+                selectBoardItem(textBox.id, additive);
+              }}
+              onDragMove={handleItemDragMove}
+              onDragEnd={handleItemDragEnd}
+              onEditEnd={() => setEditObjectId((id) => (id === textBox.id ? null : id))}
+              onChange={(nextText) => {
+                if (!canEdit) {
+                  return;
+                }
+                updateBoard(pageId, (current) => {
+                  const next = normalizeBoard(current);
+                  return {
+                    ...next,
+                    texts: next.texts.map((item) =>
+                      item.id === nextText.id
+                        ? {
+                            ...nextText,
+                            x: snapToGrid(nextText.x, next.gridEnabled),
+                            y: snapToGrid(nextText.y, next.gridEnabled),
+                            width: Math.max(80, nextText.width),
+                            height: Math.max(36, nextText.height),
+                            rotation: nextText.rotation ?? 0,
+                          }
+                        : item,
+                    ),
+                  };
+                });
+              }}
+            />
+          ))}
+
           <svg
             className="absolute left-0 top-0 z-40 overflow-visible"
             width={Math.max(2400, contentBounds.maxX + 200)}
@@ -1475,12 +1619,14 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
                 board.stickies.find((item) => item.id === connector.fromId) ??
                 board.shapes.find((item) => item.id === connector.fromId) ??
                 board.frames.find((item) => item.id === connector.fromId) ??
-                board.images.find((item) => item.id === connector.fromId);
+                board.images.find((item) => item.id === connector.fromId) ??
+                board.texts.find((item) => item.id === connector.fromId);
               const to =
                 board.stickies.find((item) => item.id === connector.toId) ??
                 board.shapes.find((item) => item.id === connector.toId) ??
                 board.frames.find((item) => item.id === connector.toId) ??
-                board.images.find((item) => item.id === connector.toId);
+                board.images.find((item) => item.id === connector.toId) ??
+                board.texts.find((item) => item.id === connector.toId);
               if (!from || !to) {
                 return null;
               }

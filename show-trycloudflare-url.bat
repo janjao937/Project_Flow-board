@@ -18,17 +18,22 @@ if errorlevel 1 (
 
 if exist "%~dp0trycloudflare-url.txt" (
   echo จากไฟล์ trycloudflare-url.txt:
+  echo ------------------------------------------------
   type "%~dp0trycloudflare-url.txt"
+  echo ------------------------------------------------
+  echo.
+) else (
+  echo [WARN] ยังไม่มี trycloudflare-url.txt
+  echo        รัน start-trycloudflare.bat แล้วรอจนได้ PUBLIC URL
   echo.
 )
 
-echo จาก log cloudflared:
+echo จาก log cloudflared ล่าสุด:
 echo ------------------------------------------------
-docker compose -p flowboard-trycloudflare -f docker\docker-compose.trycloudflare.yml logs cloudflared --no-color 2>nul | findstr /i "trycloudflare.com"
-docker compose -p docker -f docker\docker-compose.trycloudflare.yml logs cloudflared --no-color 2>nul | findstr /i "trycloudflare.com"
+docker compose -p flowboard-trycloudflare -f docker\docker-compose.trycloudflare.yml logs cloudflared --no-color --tail 80 2>nul | findstr /i "trycloudflare.com"
 echo ------------------------------------------------
 echo.
-echo ถ้าไม่เจอ URL: รัน start-trycloudflare.bat ใหม่
+echo ถ้า URL ในไฟล์เป็น waiting... หรือไม่ตรง log: รอสคริปต์เขียนไฟล์ หรือรัน start ใหม่
 echo.
 pause
 exit /b 0
