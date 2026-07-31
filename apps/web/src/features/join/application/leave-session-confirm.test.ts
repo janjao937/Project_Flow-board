@@ -28,10 +28,23 @@ describe("requestLeaveSessionConfirm", () => {
     unsubscribe();
   });
 
-  it("cancels previous pending when a new confirm is requested", async () => {
-    let latest: LeaveSessionConfirmRequest | null = null;
+  it("supports deferred leave (confirmed without leaving)", async () => {
+    const box: { current: LeaveSessionConfirmRequest | null } = { current: null };
     const unsubscribe = subscribeLeaveSessionConfirm((request) => {
-      latest = request;
+      box.current = request;
+    });
+
+    const pending = requestLeaveSessionConfirm(hostNew, { executeLeave: false });
+    expect(box.current?.executeLeave).toBe(false);
+    box.current?.resolve({ kind: "confirmed" });
+    await expect(pending).resolves.toEqual({ kind: "confirmed" });
+    unsubscribe();
+  });
+
+  it("cancels previous pending when a new confirm is requested", async () => {
+    const box: { current: LeaveSessionConfirmRequest | null } = { current: null };
+    const unsubscribe = subscribeLeaveSessionConfirm((request) => {
+      box.current = request;
     });
 
     const first = requestLeaveSessionConfirm(hostNew);
@@ -41,13 +54,8 @@ describe("requestLeaveSessionConfirm", () => {
     });
 
     await expect(first).resolves.toEqual({ kind: "cancelled" });
-    const active = latest;
-    expect(active).not.toBeNull();
-    if (!active) {
-      throw new Error("expected pending leave-session confirm request");
-    }
-    expect(active.decision.intent).toBe("join");
-    active.resolve({ kind: "left" });
+    expect(box.current?.decision.intent).toBe("join");
+    box.current?.resolve({ kind: "left" });
     await expect(second).resolves.toEqual({ kind: "left" });
     unsubscribe();
   });

@@ -1,0 +1,70 @@
+# Full local stack with hot reload (next/tsx watch).
+# First start builds images once; code changes do not require rebuild.
+#
+#   npm run docker:local
+#   npm run docker:local:down
+
+name: flowboard-local
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev.api
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      HOST: 0.0.0.0
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+    volumes:
+      - ../apps/api:/repo/apps/api
+      - ../packages:/repo/packages
+      - api_node_modules:/repo/apps/api/node_modules
+    ports:
+      - "4000:4000"
+    depends_on:
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev.web
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ../apps/web:/repo/apps/web
+      - ../packages:/repo/packages
+      - web_node_modules:/repo/apps/web/node_modules
+      - web_next:/repo/apps/web/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  api_node_modules:
+  web_node_modules:
+  web_next:

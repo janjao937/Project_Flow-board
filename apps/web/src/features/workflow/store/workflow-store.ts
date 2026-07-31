@@ -52,6 +52,14 @@ interface WorkflowStore {
   future: HistoryEntry[];
   newWorkflow: (name: string) => void;
   openFromDisk: () => Promise<void>;
+  applyOpenedPackage: (input: {
+    manifest: WorkflowManifest;
+    data: WorkflowDocumentData;
+    fileHandle: FlowFileHandle | null;
+    fileName: string;
+    encrypted: boolean;
+    passphrase?: string;
+  }) => void;
   save: () => Promise<void>;
   saveAs: () => Promise<void>;
   setActivePage: (pageId: string) => void;
@@ -130,7 +138,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (isEncryptedPackage(picked.bytes)) {
       const unlocked = await requestUnlockPassphrase();
       if (!unlocked) {
-        return;
+        throw new Error("cancelled");
       }
       passphrase = unlocked;
     }
@@ -148,6 +156,26 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       future: [],
     });
     rememberRecent({ id: opened.manifest.id, name: opened.manifest.name, openedAt: Date.now() });
+  },
+
+  /**
+   * Load a package that was already picked/unlocked — used after leave so
+   * confirm+pick can happen while still in a session without syncing the new doc.
+   */
+  applyOpenedPackage: (input) => {
+    set({
+      manifest: input.manifest,
+      data: input.data,
+      activePageId: input.manifest.pages[0]?.id ?? null,
+      fileHandle: input.fileHandle,
+      fileName: input.fileName,
+      dirty: false,
+      packageEncrypted: input.encrypted,
+      sessionPassphrase: input.encrypted ? (input.passphrase ?? null) : null,
+      past: [],
+      future: [],
+    });
+    rememberRecent({ id: input.manifest.id, name: input.manifest.name, openedAt: Date.now() });
   },
 
   save: async () => {

@@ -1,13 +1,16 @@
 import type { ConfirmDecision } from "../application/leave-session-policy";
 
-/** Outcome after the confirm dialog finishes (leave may already be done on OK). */
+/** Outcome after the confirm dialog finishes. */
 export type LeaveConfirmOutcome =
   | { kind: "cancelled" }
   | { kind: "left" }
+  | { kind: "confirmed" }
   | { kind: "leave_failed" };
 
 export type LeaveSessionConfirmRequest = {
   decision: ConfirmDecision;
+  /** When false, OK only confirms — caller runs leave later (Open pick-before-leave). */
+  executeLeave: boolean;
   translateError?: (key: string) => string;
   resolve: (outcome: LeaveConfirmOutcome) => void;
 };
@@ -29,22 +32,30 @@ export function subscribeLeaveSessionConfirm(next: Listener): () => void {
   };
 }
 
+export type RequestLeaveSessionConfirmOptions = {
+  translateError?: (key: string) => string;
+  /** Default true. Set false to confirm without ending/clearing the session yet. */
+  executeLeave?: boolean;
+};
+
 /**
- * Phase 1/4 — Show leave-session confirm dialog.
- * On OK the host executes leave while busy, then resolves "left".
- * Dismiss / Cancel resolves "cancelled". Leave API failure resolves "leave_failed".
+ * Show leave-session confirm dialog.
+ * - executeLeave true (default): OK runs leave while busy, then resolves "left"
+ * - executeLeave false: OK resolves "confirmed" without leaving
  */
 export function requestLeaveSessionConfirm(
   decision: ConfirmDecision,
-  translateError?: (key: string) => string,
+  options: RequestLeaveSessionConfirmOptions = {},
 ): Promise<LeaveConfirmOutcome> {
+  const executeLeave = options.executeLeave !== false;
   return new Promise((resolve) => {
     if (pending) {
       pending.resolve({ kind: "cancelled" });
     }
     pending = {
       decision,
-      translateError,
+      executeLeave,
+      translateError: options.translateError,
       resolve: (outcome) => {
         pending = null;
         listener?.(null);

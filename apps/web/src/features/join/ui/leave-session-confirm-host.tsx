@@ -54,6 +54,10 @@ export function LeaveSessionConfirmHost() {
     if (!request || busy) {
       return;
     }
+    if (!request.executeLeave) {
+      request.resolve({ kind: "confirmed" });
+      return;
+    }
     setBusy(true);
     try {
       await executeLeaveAction(request.decision.leaveAction);

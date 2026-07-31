@@ -28,7 +28,29 @@ cp .env.example .env.development
 
 ### 1) Local development (แนะนำตอนเขียนโค้ด)
 
-รัน web + api บน host, NATS ใน Docker
+#### 1a) Full stack ใน Docker (hot reload — แนะนำตอนเทส)
+
+รัน web + api + NATS ใน Docker แบบ `npm run dev` (tsx watch / next dev)  
+build image ครั้งแรกครั้งเดียว แล้วแก้โค้ดเทสได้เลยโดยไม่ต้อง build ซ้ำ
+
+```bash
+npm run docker:local
+```
+
+| Service | URL |
+|---------|-----|
+| Web | http://localhost:3000 |
+| API | http://localhost:4000 |
+| NATS | `nats://localhost:4222` |
+
+หยุด / ล้าง volumes (ถ้า deps ค้าง):
+
+```bash
+npm run docker:local:down
+npm run docker:local:reset
+```
+
+#### 1b) Host `npm run dev` + NATS ใน Docker
 
 ```bash
 # terminal 1 — NATS
@@ -37,12 +59,6 @@ npm run docker:dev
 # terminal 2 — Next.js + Fastify
 npm run dev
 ```
-
-| Service | URL |
-|---------|-----|
-| Web | http://localhost:3000 |
-| API | http://localhost:4000 |
-| NATS | `nats://localhost:4222` |
 
 แยกรัน:
 
@@ -153,7 +169,8 @@ docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --pr
 
 | เป้าหมาย | คำสั่ง |
 |----------|--------|
-| พัฒนาโค้ดบนเครื่อง | `docker:dev` + `npm run dev` |
+| เทส/พัฒนา full stack (hot reload ใน Docker) | `npm run docker:local` |
+| พัฒนาโค้ดบน host | `docker:dev` + `npm run dev` |
 | แชร์ UI ชั่วคราวจาก `npm run dev` | + `docker:dev:tunnel` |
 | Demo เต็มระบบผ่านเน็ต (ไม่ต้องมีโดเมน) | `npm run trycloudflare` |
 | Deploy บน VPS | `docker:staging` |
@@ -187,6 +204,7 @@ Compose files:
 
 | ไฟล์ | ใช้ทำอะไร |
 |------|-----------|
+| `docker/docker-compose.local.yml` | Full stack local + hot reload (web/api/nats) |
 | `docker/docker-compose.dev.yml` | NATS (+ optional trycloudflare → host:3000) |
 | `docker/docker-compose.trycloudflare.yml` | Full stack + quick tunnel |
 | `docker/docker-compose.staging.yml` | Staging/VPS (+ profile `tunnel` สำหรับ named tunnel) |

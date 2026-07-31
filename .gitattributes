@@ -1,0 +1,2 @@
+# Shell scripts must keep LF for Linux containers / Alpine
+docker/*.sh text eol=lf

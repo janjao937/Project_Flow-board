@@ -38,14 +38,34 @@ export function supportsFileSystemAccess(): boolean {
 export async function pickOpenFlowPackage(): Promise<{ bytes: Uint8Array; handle: FlowFileHandle | null; name: string }> {
   const w = window as WindowWithFS;
   if (supportsFileSystemAccess() && w.showOpenFilePicker) {
-    const [handle] = await w.showOpenFilePicker({ multiple: false, types: [FLOWPKG_TYPE] });
-    const file = await (handle as unknown as { getFile: () => Promise<File> }).getFile();
-    const buffer = new Uint8Array(await file.arrayBuffer());
-    return { bytes: buffer, handle, name: file.name };
+    try {
+      const [handle] = await w.showOpenFilePicker({ multiple: false, types: [FLOWPKG_TYPE] });
+      const file = await (handle as unknown as { getFile: () => Promise<File> }).getFile();
+      const buffer = new Uint8Array(await file.arrayBuffer());
+      return { bytes: buffer, handle, name: file.name };
+    } catch (error) {
+      if (isPickerCancelled(error)) {
+        throw new Error("cancelled");
+      }
+      throw error;
+    }
   }
 
   return pickOpenWithInput();
 }
+
+function isPickerCancelled(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const candidate = error as { name?: string; message?: string };
+  return (
+    candidate.name === "AbortError" ||
+    candidate.message === "cancelled" ||
+    /aborted|cancel/i.test(candidate.message ?? "")
+  );
+}
+
 
 function pickOpenWithInput(): Promise<{ bytes: Uint8Array; handle: null; name: string }> {
   return new Promise((resolve, reject) => {

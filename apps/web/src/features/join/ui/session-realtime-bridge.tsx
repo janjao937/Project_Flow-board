@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useRouter } from "@/i18n/navigation";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { RealtimeClient } from "../infrastructure/realtime-client";
+import { registerRealtimeDisconnect } from "../infrastructure/realtime-disconnect";
 import { useSessionStore } from "../store/session-store";
 import { Button } from "@/components/ui/button";
 
@@ -23,6 +24,14 @@ export function SessionRealtimeBridge() {
   const dirty = useWorkflowStore((s) => s.dirty);
   const clientRef = useRef<RealtimeClient | null>(null);
   const applyingRemote = useRef(false);
+
+  useEffect(() => {
+    registerRealtimeDisconnect(() => {
+      clientRef.current?.disconnect();
+      clientRef.current = null;
+    });
+    return () => registerRealtimeDisconnect(null);
+  }, []);
 
   useEffect(() => {
     if (!token || !sessionId) {
