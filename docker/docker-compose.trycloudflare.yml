@@ -14,6 +14,8 @@ services:
       NODE_ENV: staging
       PORT: 4000
       HOST: 0.0.0.0
+      # Prefer stable Cloudflare Free web origin, e.g. https://flowboard.<subdomain>.workers.dev
+      # Comma-separated origins supported. Default * for quick demos.
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       NATS_URL: nats://nats:4222
       JWT_SECRET: ${JWT_SECRET:-trycloudflare-dev-secret-change-me}

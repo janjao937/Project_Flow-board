@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
+import { resolveCorsOrigin } from "./cors-origin";
 import type { Env } from "./env";
 import { errorHandler } from "./errorHandler";
 import { NatsBus } from "./infrastructure/nats-bus";
@@ -49,7 +50,7 @@ export async function buildApp(env: Env): Promise<BuiltApp> {
   const hub = new RealtimeHub(nats);
 
   await app.register(cors, {
-    origin: env.NODE_ENV === "development" ? true : env.CORS_ORIGIN,
+    origin: resolveCorsOrigin(env.NODE_ENV, env.CORS_ORIGIN),
   });
   await app.register(websocket);
 

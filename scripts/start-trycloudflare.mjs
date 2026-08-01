@@ -9,7 +9,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composeFile = path.join("docker", "docker-compose.trycloudflare.yml");
 const projectName = "flowboard-trycloudflare";
 const urlFile = path.join(root, "trycloudflare-url.txt");
+const envTrycloudflare = path.join(root, ".env.trycloudflare");
 const localPort = Number(process.env.FLOWBOARD_LOCAL_PORT || 3080) || 3080;
+const { publishRuntimeConfig } = await import("./publish-runtime-config.mjs");
 // Quick Tunnel hostnames look like random-words.trycloudflare.com.
 // Reject reserved hosts (e.g. api.trycloudflare.com) that appear in cloudflared logs.
 const urlPattern = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/gi;
@@ -38,7 +40,12 @@ function dockerSpawn(args, options = {}) {
 }
 
 function composeArgs(extra) {
-  return ["compose", "-p", projectName, "-f", composeFile, ...extra];
+  const args = ["compose", "-p", projectName, "-f", composeFile];
+  if (fs.existsSync(envTrycloudflare)) {
+    args.push("--env-file", envTrycloudflare);
+  }
+  args.push(...extra);
+  return args;
 }
 
 function ensureDocker() {
@@ -191,11 +198,16 @@ async function waitForPublicUrl(sinceIso, timeoutMs = 180_000) {
 }
 
 /** Ctrl+C closes public tunnel only — local/LAN stack keeps running. */
-function shutdownTunnelOnly() {
+async function shutdownTunnelOnly() {
   console.log("\nStopping Cloudflare tunnel only (local stack stays up)...");
   dockerSync(composeArgs(["stop", "cloudflared"]), { stdio: "inherit" });
   const localUrls = localAccessUrls();
   saveUrl("", { note: "tunnel-stopped-local-only" });
+  try {
+    await publishRuntimeConfig("", { quiet: false });
+  } catch (error) {
+    console.warn("Could not clear runtime config in Cloudflare KV:", error instanceof Error ? error.message : error);
+  }
   console.log("");
   console.log("Public trycloudflare URL is offline.");
   console.log("Keep using Flowboard locally:");
@@ -260,8 +272,20 @@ if (!url) {
 saveUrl(url, { note: "fresh-tunnel" });
 printAccessUrls(url);
 
-process.on("SIGINT", shutdownTunnelOnly);
-process.on("SIGTERM", shutdownTunnelOnly);
+try {
+  console.log("Publishing runtime config (apiBaseUrl) for Cloudflare-hosted clients...");
+  await publishRuntimeConfig(url);
+} catch (error) {
+  console.warn("Runtime config publish failed:", error instanceof Error ? error.message : error);
+  console.warn("Cloudflare Free clients will not Join until KV is updated.");
+}
+
+process.on("SIGINT", () => {
+  void shutdownTunnelOnly();
+});
+process.on("SIGTERM", () => {
+  void shutdownTunnelOnly();
+});
 
 console.log("Following cloudflared logs (API health spam hidden).");
 console.log("Ctrl+C = stop PUBLIC tunnel only (local app keeps running).\n");

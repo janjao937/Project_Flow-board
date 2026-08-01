@@ -134,6 +134,25 @@ npm run trycloudflare:stop-tunnel
 npm run trycloudflare:stop
 ```
 
+**Cloudflare Free web (Install คงที่) + trycloudflare API (Join ชั่วคราว)**
+
+1. Deploy web ขึ้น Workers ด้วย OpenNext:
+
+```bash
+cp apps/web/.env.cloudflare.example apps/web/.env.production.local
+# ตั้ง NEXT_PUBLIC_APP_URL และ NEXT_PUBLIC_REQUIRE_RUNTIME_API=1
+# สร้าง KV: cd apps/web && npx wrangler kv namespace create RUNTIME_CONFIG
+# ใส่ id จริงใน apps/web/wrangler.jsonc
+npm run cf:deploy:web
+```
+
+2. ตั้ง `.env.trycloudflare` จาก `.env.trycloudflare.example` — `CORS_ORIGIN` = workers.dev ของคุณ + token/account/KV id สำหรับ publish runtime config
+
+3. `npm run trycloudflare` — หลังได้ public URL สคริปต์จะเขียน `apiBaseUrl` เข้า KV  
+   Client ที่ Install จาก Cloudflare อ่าน `/runtime-config.json` แล้ว Join ไปที่ trycloudflare API
+
+อย่า Install จาก `*.trycloudflare.com` — Install จาก workers.dev เท่านั้น
+
 ---
 
 ### 4) Staging stack (VPS / pre-prod) ไม่มี tunnel

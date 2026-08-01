@@ -20,4 +20,7 @@ blob-report
 playwright/.cache
 *.flowpkg
 trycloudflare-url.txt
+runtime-config.published.json
+.open-next
+.wrangler
 docs/

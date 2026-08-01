@@ -17,7 +17,7 @@
 			// Create with: npx wrangler kv namespace create RUNTIME_CONFIG
 			// Then set the same id in FLOWBOARD_CF_KV_NAMESPACE_ID for tunnel publish.
 			"id": "649f9ca62d4040f9ba36c6a55f45296c",
-			"preview_id": "00000000000000000000000000000000"
+			"preview_id": "649f9ca62d4040f9ba36c6a55f45296c"
 		}
 	]
 }

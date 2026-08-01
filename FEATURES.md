@@ -326,8 +326,8 @@ Stack: Next.js (TS), Tailwind, shadcn/ui, **modern UX** — Fastify, NATS, P2P, 
 | # | Feature | Description | Status |
 |---|---------|-------------|--------|
 | 9.1 | App Router | Routing `workflow / page` | Planned |
-| 9.2 | PWA installable | manifest + service worker | Planned |
-| 9.3 | Offline static assets | cache shell UI | Planned |
+| 9.2 | PWA installable | manifest + service worker | Done |
+| 9.3 | Offline static assets | cache shell UI | Done |
 | 9.4 | Workflow shell layout | sidebar pages, toolbar, status — **UX §8.0** | Planned |
 | 9.5 | Lazy page components | โหลด Board/Roadmap/Tasks/Plan ตาม kind | Planned |
 | 9.6 | WorkflowStore | state + Yjs provider ร่วมทุก page | Planned |
