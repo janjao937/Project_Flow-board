@@ -207,7 +207,11 @@
     "leaveConfirmBody_open_guest": "คุณกำลังเข้าร่วมเซสชันสด การเปิดไฟล์จะตัดการเชื่อมต่อจากเซสชันนี้",
     "leaveConfirmOk": "ดำเนินการต่อ",
     "leaveConfirmCancel": "ยกเลิก",
-    "leaveConfirmLeaving": "กำลังออก…"
+    "leaveConfirmLeaving": "กำลังออก…",
+    "offlineBanner": "คุณออฟไลน์อยู่ เปิดและแก้ไขไฟล์ .flowpkg ได้ในเครื่อง — การ Join ต้องมีเครือข่าย",
+    "apiUnavailableBanner": "เซิร์ฟเวอร์เซสชันสดยังไม่พร้อม คุณยังเปิดและบันทึกไฟล์ .flowpkg ได้",
+    "retryConnectivity": "ลองใหม่",
+    "sessionUnavailable": "เซสชันสดยังใช้ไม่ได้ในตอนนี้"
   },
   "errors": {
     "validation": "ข้อมูลบางช่องไม่ถูกต้อง",

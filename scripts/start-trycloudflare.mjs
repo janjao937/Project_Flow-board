@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composeFile = path.join("docker", "docker-compose.trycloudflare.yml");
 const projectName = "flowboard-trycloudflare";
 const urlFile = path.join(root, "trycloudflare-url.txt");
+const localPort = Number(process.env.FLOWBOARD_LOCAL_PORT || 3080) || 3080;
 // Quick Tunnel hostnames look like random-words.trycloudflare.com.
 // Reject reserved hosts (e.g. api.trycloudflare.com) that appear in cloudflared logs.
 const urlPattern = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/gi;
@@ -47,6 +49,20 @@ function ensureDocker() {
   }
 }
 
+function localAccessUrls() {
+  const urls = [`http://127.0.0.1:${localPort}`];
+  for (const nets of Object.values(os.networkInterfaces())) {
+    for (const net of nets ?? []) {
+      const family = net.family;
+      const isV4 = family === "IPv4" || family === 4;
+      if (isV4 && !net.internal) {
+        urls.push(`http://${net.address}:${localPort}`);
+      }
+    }
+  }
+  return [...new Set(urls)];
+}
+
 function extractUrl(text) {
   const matches = String(text ?? "").match(urlPattern);
   if (!matches?.length) {
@@ -81,25 +97,38 @@ function detectRateLimit(text) {
   );
 }
 
-function printPublicUrl(url) {
-  const line = "=".repeat(Math.min(78, Math.max(48, url.length + 16)));
+function printAccessUrls(publicUrl) {
+  const localUrls = localAccessUrls();
+  const line = "=".repeat(78);
   console.log(`\n${line}`);
-  console.log("  PUBLIC URL (แชร์ลิงก์นี้ให้ทีม)");
-  console.log(`  ${url}`);
+  if (publicUrl) {
+    console.log("  PUBLIC URL (แชร์ชั่วคราวเท่านั้น — อย่า Install จากลิงก์นี้)");
+    console.log(`  ${publicUrl}`);
+    console.log("");
+  }
+  console.log("  LOCAL URL (ใช้ติดตั้ง/ใช้งานในเครื่องหรือ LAN — ใช้ได้แม้ปิด Cloudflare)");
+  for (const url of localUrls) {
+    console.log(`  ${url}`);
+  }
   console.log("");
   console.log("  Host: เปิดลิงก์ → Start session → ส่ง join code");
-  console.log("  หยุด: Ctrl+C หรือ stop-trycloudflare.bat");
+  console.log("  ปิดเฉพาะ tunnel: Ctrl+C หรือ stop-trycloudflare-tunnel.bat");
+  console.log("  หยุดทั้ง stack: stop-trycloudflare.bat");
   console.log(`${line}\n`);
   console.log(`Saved to: ${urlFile}\n`);
 }
 
-function saveUrl(url, meta = {}) {
+function saveUrl(publicUrl, meta = {}) {
   const updatedAt = new Date().toISOString();
+  const localUrls = localAccessUrls();
   const body = [
-    url,
+    publicUrl || "(no public tunnel)",
     "",
+    `localUrl=${localUrls[0]}`,
+    ...localUrls.slice(1).map((url) => `lanUrl=${url}`),
     `updatedAt=${updatedAt}`,
     meta.note ? `note=${meta.note}` : null,
+    "tip=Install/bookmark LOCAL URL for use after Cloudflare is closed",
   ]
     .filter(Boolean)
     .join("\n");
@@ -110,8 +139,9 @@ function saveWaiting() {
   const updatedAt = new Date().toISOString();
   fs.writeFileSync(
     urlFile,
-    [`waiting for trycloudflare URL...`, "", `updatedAt=${updatedAt}`, `status=waiting`].join("\n") +
+    [`waiting for trycloudflare URL...`, "", `localUrl=http://127.0.0.1:${localPort}`, `updatedAt=${updatedAt}`, `status=waiting`].join(
       "\n",
+    ) + "\n",
     "utf8",
   );
 }
@@ -143,8 +173,12 @@ async function waitForPublicUrl(sinceIso, timeoutMs = 180_000) {
       console.error("Stopping cloudflared so retries do not make the limit worse...");
       dockerSync(composeArgs(["stop", "cloudflared"]), { stdio: "inherit" });
       console.error("");
-      console.error("Wait 15–30 minutes, then run start-trycloudflare.bat again.");
-      console.error("Tip: avoid restarting the tunnel repeatedly; each start requests a new URL.");
+      console.error("Local app is still available:");
+      for (const url of localAccessUrls()) {
+        console.error(`  ${url}`);
+      }
+      console.error("");
+      console.error("Wait 15–30 minutes, then run start-trycloudflare.bat again for a public URL.");
       return { url: null, rateLimited: true };
     }
     if (attempt === 1 || attempt % 5 === 0) {
@@ -156,14 +190,20 @@ async function waitForPublicUrl(sinceIso, timeoutMs = 180_000) {
   return { url: null, rateLimited: false };
 }
 
-function shutdown() {
-  console.log("\nStopping stack...");
-  dockerSync(composeArgs(["down", "--remove-orphans"]), { stdio: "inherit" });
-  try {
-    fs.unlinkSync(urlFile);
-  } catch {
-    // ignore
+/** Ctrl+C closes public tunnel only — local/LAN stack keeps running. */
+function shutdownTunnelOnly() {
+  console.log("\nStopping Cloudflare tunnel only (local stack stays up)...");
+  dockerSync(composeArgs(["stop", "cloudflared"]), { stdio: "inherit" });
+  const localUrls = localAccessUrls();
+  saveUrl("", { note: "tunnel-stopped-local-only" });
+  console.log("");
+  console.log("Public trycloudflare URL is offline.");
+  console.log("Keep using Flowboard locally:");
+  for (const url of localUrls) {
+    console.log(`  ${url}`);
   }
+  console.log("");
+  console.log("Full stop (web/api/nats/edge): stop-trycloudflare.bat");
   process.exit(0);
 }
 
@@ -171,6 +211,7 @@ ensureDocker();
 
 console.log("Starting Flowboard (detached): web + api + nats + caddy + tunnel");
 console.log("No custom domain needed — Cloudflare assigns a random *.trycloudflare.com URL.");
+console.log(`Local access (no Cloudflare): http://127.0.0.1:${localPort}`);
 console.log("First run may take a few minutes to build images.\n");
 
 saveWaiting();
@@ -184,6 +225,9 @@ if (up.status !== 0) {
   process.exit(up.status ?? 1);
 }
 
+console.log("\nLocal stack is up even if the public tunnel fails.");
+printAccessUrls(null);
+
 // Always recreate the quick tunnel so each start gets a fresh public URL
 // (otherwise cloudflared keeps the old container/logs and the txt file looks unchanged).
 console.log("\nRecreating cloudflared tunnel for a fresh public URL...");
@@ -193,6 +237,7 @@ const recreate = dockerSync(composeArgs(["up", "-d", "--force-recreate", "--no-d
 });
 if (recreate.status !== 0) {
   console.error("\nFailed to recreate cloudflared tunnel.");
+  console.error("Local URLs above still work.");
   process.exit(recreate.status ?? 1);
 }
 
@@ -200,10 +245,12 @@ console.log("\nLooking for new public URL in cloudflared logs (this run only)...
 
 const { url, rateLimited } = await waitForPublicUrl(tunnelSince);
 if (!url) {
+  saveUrl("", { note: rateLimited ? "rate-limited" : "no-public-url" });
   if (rateLimited) {
     process.exit(1);
   }
   console.error("Could not find a trycloudflare.com URL yet.");
+  console.error("Local stack is still running — use LOCAL URL above.");
   console.error("Check manually with:");
   console.error(`  docker compose -p ${projectName} -f ${composeFile} logs cloudflared --since ${tunnelSince}`);
   console.error("Or run: show-trycloudflare-url.bat");
@@ -211,12 +258,13 @@ if (!url) {
 }
 
 saveUrl(url, { note: "fresh-tunnel" });
-printPublicUrl(url);
+printAccessUrls(url);
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdownTunnelOnly);
+process.on("SIGTERM", shutdownTunnelOnly);
 
-console.log("Following cloudflared logs (API health spam hidden). Ctrl+C to stop stack.\n");
+console.log("Following cloudflared logs (API health spam hidden).");
+console.log("Ctrl+C = stop PUBLIC tunnel only (local app keeps running).\n");
 const logs = dockerSpawn(
   composeArgs(["logs", "-f", "--no-color", "cloudflared", "edge", "web"]),
   {

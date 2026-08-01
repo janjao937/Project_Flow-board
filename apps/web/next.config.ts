@@ -11,3 +11,10 @@ const nextConfig: NextConfig = {
 };
 
 export default withNextIntl(nextConfig);
+
+// Bindings for local `next dev` with OpenNext (skipped during production builds).
+if (process.env.NODE_ENV !== "production") {
+  void import("@opennextjs/cloudflare")
+    .then(({ initOpenNextCloudflareForDev }) => initOpenNextCloudflareForDev())
+    .catch(() => undefined);
+}

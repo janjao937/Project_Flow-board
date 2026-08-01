@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { showErrorToast } from "@/shared/api-client/show-error-toast";
+import { isSessionApiReady, useSessionApiStatus } from "@/shared/runtime-config/use-session-api-status";
 import { useSessionStore } from "../store/session-store";
 
 export function HostSessionPanel() {
@@ -23,6 +24,8 @@ export function HostSessionPanel() {
   const startHostSession = useSessionStore((s) => s.startHostSession);
   const setGuestsCanEdit = useSessionStore((s) => s.setGuestsCanEdit);
   const endSession = useSessionStore((s) => s.endSession);
+  const { status, refresh } = useSessionApiStatus();
+  const sessionReady = isSessionApiReady(status);
   const [displayName, setDisplayName] = useState("Host");
   const [open, setOpen] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -105,8 +108,11 @@ export function HostSessionPanel() {
 
   return (
     <div className="border-border/60 bg-background/80 rounded-xl border p-3 backdrop-blur">
+      {!sessionReady ? (
+        <p className="text-muted-foreground text-sm">{t("sessionUnavailable")}</p>
+      ) : null}
       {!open ? (
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button size="sm" disabled={!sessionReady} onClick={() => setOpen(true)}>
           {t("startSession")}
         </Button>
       ) : (
@@ -121,15 +127,18 @@ export function HostSessionPanel() {
           </div>
           <Button
             className="w-full"
-            disabled={starting}
+            disabled={starting || !sessionReady}
             onClick={() => {
               setStarting(true);
-              void startHostSession({
-                displayName: displayName.trim() || "Host",
-                guestsCanEdit: useSessionStore.getState().guestsCanEdit,
-                manifest,
-                data,
-              })
+              void refresh()
+                .then(() =>
+                  startHostSession({
+                    displayName: displayName.trim() || "Host",
+                    guestsCanEdit: useSessionStore.getState().guestsCanEdit,
+                    manifest,
+                    data,
+                  }),
+                )
                 .then(() => toast.success(t("sessionStarted")))
                 .catch((error) => showErrorToast(error, te))
                 .finally(() => setStarting(false));

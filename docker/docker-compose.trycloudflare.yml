@@ -54,6 +54,9 @@ services:
     depends_on:
       - web
       - api
+    ports:
+      # Local / LAN access without Cloudflare (keeps working after tunnel stop).
+      - "${FLOWBOARD_LOCAL_PORT:-3080}:80"
     volumes:
       - ./caddy/Caddyfile.trycloudflare:/etc/caddy/Caddyfile:ro
     restart: unless-stopped

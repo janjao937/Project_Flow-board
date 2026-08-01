@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/shell/app-header";
 import { SessionRealtimeBridge } from "@/features/join/ui/session-realtime-bridge";
 import { LeaveSessionConfirmHost } from "@/features/join/ui/leave-session-confirm-host";
 import { PassphrasePromptHost } from "@/features/workflow/ui/passphrase-prompt-host";
+import { SessionConnectivityBanner } from "@/shared/runtime-config/session-connectivity-banner";
 import { routing } from "@/i18n/routing";
 
 export function generateStaticParams() {
@@ -34,6 +35,7 @@ export default async function LocaleLayout({
         <AppErrorBoundary>
           <div lang={locale} className="flex min-h-full flex-1 flex-col">
             <AppHeader />
+            <SessionConnectivityBanner />
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>
             <SessionRealtimeBridge />
             <LeaveSessionConfirmHost />

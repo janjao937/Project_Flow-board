@@ -207,7 +207,11 @@
     "leaveConfirmBody_open_guest": "You are joined to a live session. Opening a file will disconnect you from it.",
     "leaveConfirmOk": "Continue",
     "leaveConfirmCancel": "Cancel",
-    "leaveConfirmLeaving": "Leaving…"
+    "leaveConfirmLeaving": "Leaving…",
+    "offlineBanner": "You are offline. Open and edit .flowpkg files locally; Join needs a network connection.",
+    "apiUnavailableBanner": "Live session server is not available. You can still open and save .flowpkg files.",
+    "retryConnectivity": "Retry",
+    "sessionUnavailable": "Live sessions are unavailable right now."
   },
   "errors": {
     "validation": "Some fields are invalid.",

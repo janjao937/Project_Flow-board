@@ -37,13 +37,16 @@ echo [OK] Docker พร้อมแล้ว
 echo.
 echo โหมดนี้ไม่ต้องมีโดเมนขององค์กร
 echo Cloudflare จะสุ่ม URL: https://xxxx.trycloudflare.com
+echo Local ^(ใช้ได้แม้ปิด Cloudflare^): http://127.0.0.1:3080
 echo.
 echo กำลัง build/start แบบเงียบ ^(ไม่โชว์ spam /ready ของ API^)
 echo - ทุกครั้งจะ recreate tunnel → ได้ URL ใหม่
 echo - ไฟล์ trycloudflare-url.txt จะถูกรีเซ็ตแล้วเขียนทับเมื่อได้ลิงก์
-echo - รอจนเห็นกล่อง PUBLIC URL
+echo - รอจนเห็นกล่อง PUBLIC / LOCAL URL
 echo - ดูลิงก์ทีหลัง: show-trycloudflare-url.bat
-echo - หยุด: Ctrl+C หรือ stop-trycloudflare.bat
+echo - ปิดเฉพาะ tunnel: Ctrl+C หรือ stop-trycloudflare-tunnel.bat
+echo - หยุดทั้ง stack: stop-trycloudflare.bat
+echo - อย่า Install จาก *.trycloudflare.com — ใช้ LOCAL URL
 echo.
 echo ------------------------------------------------
 echo.

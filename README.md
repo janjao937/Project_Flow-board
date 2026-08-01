@@ -91,8 +91,9 @@ npm run docker:dev:tunnel
 
 **Windows (กดใช้ในองค์กร):** ดับเบิลคลิกที่รากโปรเจกต์
 
-- `start-trycloudflare.bat` — build/start ทั้ง stack แล้วพิมพ์ **Public URL** (บันทึกใน `trycloudflare-url.txt`)
+- `start-trycloudflare.bat` — build/start ทั้ง stack แล้วพิมพ์ **Public + Local URL** (บันทึกใน `trycloudflare-url.txt`)
 - `show-trycloudflare-url.bat` — แสดงลิงก์อีกครั้งถ้าหาไม่เจอในหน้าต่าง log
+- `stop-trycloudflare-tunnel.bat` — **ปิดเฉพาะ Cloudflare** (แอพยังใช้ได้ที่ `http://127.0.0.1:3080`)
 - `stop-trycloudflare.bat` — หยุด containers ทั้งหมด
 
 หรือใช้ npm:
@@ -101,22 +102,35 @@ npm run docker:dev:tunnel
 npm run trycloudflare
 ```
 
-สคริปต์จะ build/start stack แล้วพิมพ์ **Public URL** ให้เมื่อ tunnel พร้อม  
-ส่งลิงก์นั้นให้คนอื่น → host กด Start session → ส่ง join code
+สคริปต์จะ build/start stack แล้วพิมพ์ **Public URL** + **Local URL**  
+ส่งลิงก์ public ให้คนอื่นชั่วคราว → host กด Start session → ส่ง join code
+
+**สำคัญ — ติดตั้งแอพในเครื่อง:**
+
+| ใช้ลิงก์ | ผลเมื่อปิด Cloudflare |
+|----------|------------------------|
+| `*.trycloudflare.com` | **ใช้ไม่ได้** (URL ชั่วคราวตาย / รอบถัดไปได้ลิงก์ใหม่) |
+| `http://127.0.0.1:3080` หรือ IP ใน LAN | **ยังใช้ได้** ถ้า stack ยังรันอยู่ |
+
+แนะนำ: บุ๊กมาร์ก / Install จาก **LOCAL URL** เท่านั้น  
+อย่า Install จากลิงก์ trycloudflare
 
 หมายเหตุ:
 
 - ต้องมี Docker Desktop (เปิดค้างไว้จน Ready)
 - ไม่ต้องมี Cloudflare account / tunnel token
-- URL เปลี่ยนทุกครั้งที่สร้าง tunnel ใหม่
+- Public URL เปลี่ยนทุกครั้งที่สร้าง tunnel ใหม่
+- Local port เริ่มต้น `3080` (เปลี่ยนด้วย `FLOWBOARD_LOCAL_PORT`)
 - API ถูก proxy ที่ path `/api`
 - ครั้งแรกอาจใช้เวลา build นาน
 
 หยุด:
 
-- กด `Ctrl+C` ในหน้าต่างที่รันอยู่ หรือดับเบิลคลิก `stop-trycloudflare.bat`
+- ปิดเฉพาะ public tunnel: `Ctrl+C` หรือ `stop-trycloudflare-tunnel.bat` / `npm run trycloudflare:stop-tunnel`
+- หยุดทั้ง stack: `stop-trycloudflare.bat` / `npm run trycloudflare:stop`
 
 ```bash
+npm run trycloudflare:stop-tunnel
 npm run trycloudflare:stop
 ```
 

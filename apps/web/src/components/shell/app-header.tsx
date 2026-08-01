@@ -11,13 +11,17 @@ import { useSessionStore } from "@/features/join/store/session-store";
 import { runAfterLeaveSession } from "@/features/join/application/ensure-leave-session";
 import { openWorkflowAfterLeaveSession } from "@/features/join/application/open-after-leave";
 import { flowPackErrorMessageKey } from "@/features/workflow/lib/flow-pack-error";
+import { isSessionApiReady, useSessionApiStatus } from "@/shared/runtime-config/use-session-api-status";
 
 export function AppHeader() {
   const t = useTranslations("nav");
   const tw = useTranslations("workflow");
   const te = useTranslations("errors");
   const tb = useTranslations("brand");
+  const ts = useTranslations("session");
   const router = useRouter();
+  const { status: sessionApiStatus } = useSessionApiStatus();
+  const sessionReady = isSessionApiReady(sessionApiStatus);
   const manifest = useWorkflowStore((s) => s.manifest);
   const dirty = useWorkflowStore((s) => s.dirty);
   const activePageId = useWorkflowStore((s) => s.activePageId);
@@ -76,6 +80,8 @@ export function AppHeader() {
           <Button
             size="sm"
             variant="ghost"
+            disabled={!sessionReady}
+            title={!sessionReady ? ts("sessionUnavailable") : undefined}
             onClick={() => {
               void runAfterLeaveSession("join", te, () => {
                 router.push("/join");
@@ -169,17 +175,22 @@ function MobileActions() {
   const t = useTranslations("nav");
   const tw = useTranslations("workflow");
   const te = useTranslations("errors");
+  const ts = useTranslations("session");
   const router = useRouter();
   const manifest = useWorkflowStore((s) => s.manifest);
   const newWorkflow = useWorkflowStore((s) => s.newWorkflow);
   const openFromDisk = useWorkflowStore((s) => s.openFromDisk);
   const save = useWorkflowStore((s) => s.save);
+  const { status: sessionApiStatus } = useSessionApiStatus();
+  const sessionReady = isSessionApiReady(sessionApiStatus);
 
   return (
     <div className="border-border flex gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
       <Button
         size="sm"
         variant="default"
+        disabled={!sessionReady}
+        title={!sessionReady ? ts("sessionUnavailable") : undefined}
         onClick={() => {
           void runAfterLeaveSession("join", te, () => {
             router.push("/join");

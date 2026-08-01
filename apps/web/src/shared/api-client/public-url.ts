@@ -1,4 +1,6 @@
-export function resolvePublicApiBase(): string {
+import { getRuntimeApiBaseUrl } from "@/shared/runtime-config/runtime-config";
+
+function resolveConfiguredApiBase(): string {
   const configured = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
   if (configured.startsWith("http://") || configured.startsWith("https://")) {
     return configured;
@@ -8,6 +10,14 @@ export function resolvePublicApiBase(): string {
     return path;
   }
   return `${window.location.origin}${path}`;
+}
+
+export function resolvePublicApiBase(): string {
+  const runtime = getRuntimeApiBaseUrl();
+  if (runtime) {
+    return runtime;
+  }
+  return resolveConfiguredApiBase();
 }
 
 export function resolvePublicWsBase(): string {

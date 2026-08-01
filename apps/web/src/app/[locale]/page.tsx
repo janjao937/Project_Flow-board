@@ -12,16 +12,20 @@ import {
 import { useWorkflowStore } from "@/features/workflow/store/workflow-store";
 import { runAfterLeaveSession } from "@/features/join/application/ensure-leave-session";
 import { openWorkflowAfterLeaveSession } from "@/features/join/application/open-after-leave";
+import { isSessionApiReady, useSessionApiStatus } from "@/shared/runtime-config/use-session-api-status";
 
 export default function HomePage() {
   const t = useTranslations("home");
   const tb = useTranslations("brand");
   const tw = useTranslations("workflow");
   const te = useTranslations("errors");
+  const ts = useTranslations("session");
   const router = useRouter();
   const newWorkflow = useWorkflowStore((s) => s.newWorkflow);
   const openFromDisk = useWorkflowStore((s) => s.openFromDisk);
   const recent = useSyncExternalStore(subscribeRecent, getRecentSnapshot, getRecentServerSnapshot);
+  const { status } = useSessionApiStatus();
+  const sessionReady = isSessionApiReady(status);
 
   return (
     <main className="relative flex flex-1 flex-col overflow-hidden">
@@ -46,6 +50,8 @@ export default function HomePage() {
           <Button
             size="lg"
             variant="secondary"
+            disabled={!sessionReady}
+            title={!sessionReady ? ts("sessionUnavailable") : undefined}
             onClick={() => {
               void runAfterLeaveSession("join", te, () => {
                 router.push("/join");
