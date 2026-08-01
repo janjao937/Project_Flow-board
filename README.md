@@ -1,7 +1,7 @@
 # Flowboard
 
 PWA สำหรับออกแบบ workflow (board / tasks / roadmap / plan) เก็บเป็นไฟล์ `.flowpkg`  
-รองรับ live session ผ่าน join code + Cloudflare Tunnel
+รองรับ live session ผ่าน join code
 
 สเปกเต็ม: [`FEATURES.md`](./FEATURES.md)
 
@@ -9,29 +9,189 @@ PWA สำหรับออกแบบ workflow (board / tasks / roadmap / pla
 
 - Node.js 22+
 - npm
-- Docker + Docker Compose (สำหรับโหมด infra / staging / tunnel)
+- Docker + Docker Compose (สำหรับ infra / trycloudflare / staging)
+- Cloudflare account (Free พอ) — สำหรับโหมด Install คงที่ + Join ผ่าน tunnel
 
 > ไดรฟ์บางชนิด (เช่น `D:\` ที่ไม่รองรับ symlink) ใช้ `npm run install:all` แทน workspaces
 
-## Setup
+## Setup พื้นฐาน (ครั้งแรกบนเครื่อง)
 
 ```bash
 npm run install:all
 cp .env.example .env.development
 ```
 
-แก้ค่าใน `.env.development` ตามต้องการ จากนั้นคัดลอกตัวแปรที่เกี่ยวข้องไปที่ `apps/api` / `apps/web` ถ้าคุณรันแยกด้วย env ของแต่ละแอป
+แก้ค่าใน `.env.development` ตามต้องการ
 
 ---
 
-## วิธีรันแบบต่างๆ
+## โหมดแนะนำ: Cloudflare Workers (เว็บคงที่) + trycloudflare (API ชั่วคราว)
 
-### 1) Local development (แนะนำตอนเขียนโค้ด)
+ใช้เมื่ออยากให้คนนอก **Install แอปจาก URL คงที่** แล้วยัง **Join ได้** ตอนคุณเปิด tunnel
 
-#### 1a) Full stack ใน Docker (hot reload — แนะนำตอนเทส)
+| ส่วน | ที่อยู่ | หน้าที่ |
+|------|---------|---------|
+| เว็บ / PWA | `https://flowboard-web.<subdomain>.workers.dev` | UI, Install, offline ไฟล์ |
+| API + NATS | เครื่องคุณผ่าน `*.trycloudflare.com` | Start session / Join / realtime |
 
-รัน web + api + NATS ใน Docker แบบ `npm run dev` (tsx watch / next dev)  
-build image ครั้งแรกครั้งเดียว แล้วแก้โค้ดเทสได้เลยโดยไม่ต้อง build ซ้ำ
+Client เปิดแค่ **workers.dev** — ไม่ต้องใส่ URL tunnel เอง  
+แอปอ่าน `GET /runtime-config.json` แล้วได้ `apiBaseUrl` ที่สคริปต์ publish เข้า KV ตอนเปิด tunnel
+
+> โปรเจกต์นี้ deploy เว็บด้วย **Cloudflare Workers (OpenNext)** ไม่ใช่ classic Pages  
+> URL จะเป็น `*.workers.dev`
+
+---
+
+### A) Setup Cloudflare ครั้งแรก (ทำครั้งเดียว)
+
+#### 1. Login Wrangler
+
+```bash
+cd apps/web
+npx wrangler login
+```
+
+กดอนุญาตในเบราว์เซอร์
+
+#### 2. สร้าง KV (เก็บ API URL ตอนเปิด tunnel)
+
+```bash
+cd apps/web
+npx wrangler kv namespace create RUNTIME_CONFIG
+```
+
+- ตอบ **Yes** ถ้าถามให้เขียนลง `wrangler.jsonc`
+- ตอบ **No** ถ้าถามเรื่อง remote resource สำหรับ local dev
+- จด `id` ไว้ (หรืออ่านจาก `apps/web/wrangler.jsonc` ภายใต้ binding `RUNTIME_CONFIG`)
+
+#### 3. สร้าง API Token + หา Account ID
+
+ใน [Cloudflare Dashboard](https://dash.cloudflare.com) → โปรไฟล์ → **API Tokens** → **Create Token**
+
+- Token name: เช่น `flowboard-runtime-config`
+- Permissions: **Account** → **Workers KV Storage** → **Edit**
+- Account Resources: Include → All accounts
+- สร้างแล้ว **คัดลอก token ทันที**
+
+Account ID: หน้า Overview ของ account (ด้านขวา)
+
+#### 4. ตั้ง workers.dev subdomain (ถ้ายังไม่มี)
+
+Dashboard → **Workers & Pages** → **Create** → **Start with Hello World!**  
+ตั้ง subdomain เมื่อถูกถาม (เช่น `janjao937`)  
+Worker ทดสอบชื่ออื่น (เช่น `flowboard`) ลบได้ทีหลัง — เก็บแค่ `flowboard-web`
+
+หรือใน terminal:
+
+```bash
+cd apps/web
+npx wrangler subdomain create <ชื่อที่ต้องการ>
+```
+
+#### 5. สร้างไฟล์ env
+
+ที่รากโปรเจกต์:
+
+```bash
+cp .env.trycloudflare.example .env.trycloudflare
+```
+
+แก้ `.env.trycloudflare`:
+
+```env
+CORS_ORIGIN=https://flowboard-web.<subdomain>.workers.dev
+JWT_SECRET=ใส่รหัสยาวๆเอง
+CLOUDFLARE_API_TOKEN=แปะtoken
+CLOUDFLARE_ACCOUNT_ID=แปะaccount-id
+FLOWBOARD_CF_KV_NAMESPACE_ID=แปะkv-idจากข้อ2
+```
+
+ฝั่งเว็บ:
+
+```bash
+cp apps/web/.env.cloudflare.example apps/web/.env.production.local
+```
+
+แก้ `apps/web/.env.production.local`:
+
+```env
+NEXT_PUBLIC_APP_URL=https://flowboard-web.<subdomain>.workers.dev
+NEXT_PUBLIC_API_URL=
+NEXT_PUBLIC_REQUIRE_RUNTIME_API=1
+```
+
+#### 6. Deploy เว็บครั้งแรก
+
+```bash
+npm run cf:deploy:web
+```
+
+ได้ URL จริงจาก log เช่น `https://flowboard-web.janjao937.workers.dev`  
+ถ้ายังไม่ตรงใน env ให้แก้ `NEXT_PUBLIC_APP_URL` + `CORS_ORIGIN` แล้ว deploy ซ้ำ:
+
+```bash
+npm run cf:deploy:web
+```
+
+**ลิงก์นี้คือลิงก์ให้เพื่อน Install / เปิดใช้** — อย่า Install จาก `*.trycloudflare.com`
+
+---
+
+### B) รันใช้งานแต่ละครั้ง (demo / Join)
+
+1. เปิด Docker Desktop
+2. รัน tunnel + API:
+
+```bash
+npm run trycloudflare
+```
+
+หรือดับเบิลคลิก `start-trycloudflare.bat`
+
+3. รอจนมี public URL และข้อความ publish runtime config (เขียน `apiBaseUrl` เข้า KV)
+4. **Host:** เปิด `https://flowboard-web.<subdomain>.workers.dev` → สร้าง/เปิด workflow → **Start session** → ส่งรหัส 6 ตัว
+5. **Guest:** เปิด workers.dev **เดียวกัน** → **Join** → ใส่รหัส + ชื่อ  
+   (ไม่ต้องใส่ endpoint สุ่ม)
+
+หยุด:
+
+```bash
+# ปิดเฉพาะ tunnel (local stack ยังอยู่ที่ :3080)
+npm run trycloudflare:stop-tunnel
+
+# หยุดทั้ง stack
+npm run trycloudflare:stop
+```
+
+Windows: `stop-trycloudflare-tunnel.bat` / `stop-trycloudflare.bat`
+
+หมายเหตุ:
+
+- ช่วงที่มีคน Join ต้องเปิด `trycloudflare` ค้างไว้
+- KV มี `apiBaseUrl` **อันเดียว** — host ได้ทีละเครื่อง (คนที่ publish ทีหลังจะทับค่า)
+- Local URL `http://127.0.0.1:3080` ยังใช้ในเครื่อง/LAN ได้แม้ปิด tunnel
+
+---
+
+### C) เมื่ออัปเดตโค้ด
+
+| แก้อะไร | ต้องทำอะไร |
+|---------|------------|
+| เว็บ (UI, Join UX, PWA, runtime-config ฝั่ง client) | `npm run cf:deploy:web` |
+| API / session / NATS / docker compose | รัน `npm run trycloudflare` ใหม่ (ไม่บังคับ redeploy เว็บ) |
+| `apps/web/.env.production.local` (`NEXT_PUBLIC_*`) | แก้แล้ว `npm run cf:deploy:web` |
+| `.env.trycloudflare` (CORS, JWT, token) | รีสตาร์ท `npm run trycloudflare` |
+| แค่เปิด tunnel รอบใหม่ (โค้ดไม่เปลี่ยน) | `npm run trycloudflare` — KV ได้ URL ใหม่เอง ไม่ต้อง deploy เว็บ |
+
+หลัง deploy เว็บ คนที่ Install PWA ไว้ อาจต้องรีเฟรชแรงๆ / เปิดแอปใหม่เพื่อดึง SW เวอร์ชันใหม่
+
+---
+
+## โหมดรันอื่นๆ
+
+### 1) Local development
+
+#### 1a) Full stack ใน Docker (hot reload)
 
 ```bash
 npm run docker:local
@@ -43,8 +203,6 @@ npm run docker:local
 | API | http://localhost:4000 |
 | NATS | `nats://localhost:4222` |
 
-หยุด / ล้าง volumes (ถ้า deps ค้าง):
-
 ```bash
 npm run docker:local:down
 npm run docker:local:reset
@@ -53,161 +211,185 @@ npm run docker:local:reset
 #### 1b) Host `npm run dev` + NATS ใน Docker
 
 ```bash
-# terminal 1 — NATS
-npm run docker:dev
-
-# terminal 2 — Next.js + Fastify
-npm run dev
+npm run docker:dev   # terminal 1
+npm run dev          # terminal 2
 ```
 
-แยกรัน:
+### 2) trycloudflare แบบเต็ม stack (ไม่ใช้ Workers)
 
-```bash
-npm run dev:web
-npm run dev:api
-```
-
----
-
-### 2) Local + trycloudflare (เฉพาะหน้า web)
-
-ใช้ตอนอยากโชว์ UI จาก `npm run dev` ผ่าน URL สาธารณะชั่วคราว  
-tunnel ชี้ไปที่ `localhost:3000` เท่านั้น — join session / API จากภายนอกอาจใช้ไม่ได้เต็มรูปแบบ
-
-```bash
-npm run docker:dev
-npm run dev
-npm run docker:dev:tunnel
-```
-
-ดู URL จาก log ของ `cloudflared` (เช่น `https://xxxx.trycloudflare.com`)
-
----
-
-### 3) Full stack + trycloudflare (แนะนำสำหรับ demo / ทดสอบ join จากมือถือ)
-
-รัน web + api + nats + Caddy + quick tunnel ใน Docker ด้วยคำสั่งเดียว  
-เปิดผ่าน `*.trycloudflare.com` ได้ทั้ง UI, API (`/api`), และ realtime websocket
-
-**Windows (กดใช้ในองค์กร):** ดับเบิลคลิกที่รากโปรเจกต์
-
-- `start-trycloudflare.bat` — build/start ทั้ง stack แล้วพิมพ์ **Public + Local URL** (บันทึกใน `trycloudflare-url.txt`)
-- `show-trycloudflare-url.bat` — แสดงลิงก์อีกครั้งถ้าหาไม่เจอในหน้าต่าง log
-- `stop-trycloudflare-tunnel.bat` — **ปิดเฉพาะ Cloudflare** (แอพยังใช้ได้ที่ `http://127.0.0.1:3080`)
-- `stop-trycloudflare.bat` — หยุด containers ทั้งหมด
-
-หรือใช้ npm:
+รัน web+api ใน Docker แล้วแชร์ผ่าน `*.trycloudflare.com` โดยตรง  
+เหมาะเทสเร็ว แต่ **อย่า Install จากลิงก์นี้** (URL เปลี่ยนทุกครั้ง)
 
 ```bash
 npm run trycloudflare
 ```
 
-สคริปต์จะ build/start stack แล้วพิมพ์ **Public URL** + **Local URL**  
-ส่งลิงก์ public ให้คนอื่นชั่วคราว → host กด Start session → ส่ง join code
-
-**สำคัญ — ติดตั้งแอพในเครื่อง:**
-
 | ใช้ลิงก์ | ผลเมื่อปิด Cloudflare |
 |----------|------------------------|
-| `*.trycloudflare.com` | **ใช้ไม่ได้** (URL ชั่วคราวตาย / รอบถัดไปได้ลิงก์ใหม่) |
-| `http://127.0.0.1:3080` หรือ IP ใน LAN | **ยังใช้ได้** ถ้า stack ยังรันอยู่ |
+| `*.trycloudflare.com` | ใช้ไม่ได้ |
+| `http://127.0.0.1:3080` / LAN | ยังใช้ได้ถ้า stack ยังรัน |
 
-แนะนำ: บุ๊กมาร์ก / Install จาก **LOCAL URL** เท่านั้น  
-อย่า Install จากลิงก์ trycloudflare
+### 3) Deploy ทั้งก้อนบน VPS (staging compose)
 
-หมายเหตุ:
+รัน **web + api + NATS** บน VPS ด้วย Docker Compose  
+เข้าเน็ตผ่าน **Cloudflare Named Tunnel** (ไม่ต้องเปิดพอร์ต 80/443 บน firewall — ใช้ outbound จาก VPS พอ)
 
-- ต้องมี Docker Desktop (เปิดค้างไว้จน Ready)
-- ไม่ต้องมี Cloudflare account / tunnel token
-- Public URL เปลี่ยนทุกครั้งที่สร้าง tunnel ใหม่
-- Local port เริ่มต้น `3080` (เปลี่ยนด้วย `FLOWBOARD_LOCAL_PORT`)
-- API ถูก proxy ที่ path `/api`
-- ครั้งแรกอาจใช้เวลา build นาน
-
-หยุด:
-
-- ปิดเฉพาะ public tunnel: `Ctrl+C` หรือ `stop-trycloudflare-tunnel.bat` / `npm run trycloudflare:stop-tunnel`
-- หยุดทั้ง stack: `stop-trycloudflare.bat` / `npm run trycloudflare:stop`
-
-```bash
-npm run trycloudflare:stop-tunnel
-npm run trycloudflare:stop
+```text
+Browser / PWA
+    → https://app.yourdomain.com     (Cloudflare)
+    → cloudflared (บน VPS)
+    → web:3000  /  api:4000  /  nats (ภายใน Docker network)
 ```
 
-**Cloudflare Free web (Install คงที่) + trycloudflare API (Join ชั่วคราว)**
+Compose: [`docker/docker-compose.staging.yml`](docker/docker-compose.staging.yml)  
+Env ตัวอย่าง: [`.env.staging.example`](.env.staging.example)
 
-1. Deploy web ขึ้น Workers ด้วย OpenNext:
+#### 3.1 สิ่งที่ต้องมี
+
+- VPS (Ubuntu 22.04+ แนะนำ) + SSH
+- Docker Engine + Docker Compose plugin
+- โดเมนที่ชี้ nameserver ไป Cloudflare แล้ว
+- Cloudflare account (สร้าง Named Tunnel)
+
+#### 3.2 เตรียม VPS
 
 ```bash
-cp apps/web/.env.cloudflare.example apps/web/.env.production.local
-# ตั้ง NEXT_PUBLIC_APP_URL และ NEXT_PUBLIC_REQUIRE_RUNTIME_API=1
-# สร้าง KV: cd apps/web && npx wrangler kv namespace create RUNTIME_CONFIG
-# ใส่ id จริงใน apps/web/wrangler.jsonc
-npm run cf:deploy:web
+# ตัวอย่าง Ubuntu
+sudo apt update && sudo apt upgrade -y
+# ติดตั้ง Docker ตามเอกสารทางการ: https://docs.docker.com/engine/install/
+sudo usermod -aG docker $USER   # แล้ว logout/login ใหม่
+
+git clone <repo-url> flowboard
+cd flowboard
 ```
 
-2. ตั้ง `.env.trycloudflare` จาก `.env.trycloudflare.example` — `CORS_ORIGIN` = workers.dev ของคุณ + token/account/KV id สำหรับ publish runtime config
+#### 3.3 สร้าง Cloudflare Named Tunnel + โดเมน
 
-3. `npm run trycloudflare` — หลังได้ public URL สคริปต์จะเขียน `apiBaseUrl` เข้า KV  
-   Client ที่ Install จาก Cloudflare อ่าน `/runtime-config.json` แล้ว Join ไปที่ trycloudflare API
+1. Dashboard → **Zero Trust** → **Networks** → **Tunnels** → **Create a tunnel**
+2. เลือก **Cloudflared** → ตั้งชื่อ เช่น `flowboard-vps`
+3. คัดลอก **Tunnel token** (ใช้ใน `.env.staging`)
+4. เพิ่ม **Public hostnames** (แนะนำแยก web / api เพราะ staging compose ไม่มี reverse proxy `/api`):
 
-อย่า Install จาก `*.trycloudflare.com` — Install จาก workers.dev เท่านั้น
+| Public hostname | Path | Service (ใน Docker network) |
+|-----------------|------|-------------------------------|
+| `app.yourdomain.com` | (ว่าง) | `http://web:3000` |
+| `api.yourdomain.com` | (ว่าง) | `http://api:4000` |
 
----
+5. DNS: ให้ Cloudflare proxy (เมฆส้ม) ชี้ CNAME โดเมนเหล่านี้ไปที่ tunnel (Dashboard มักสร้างให้อัตโนมัติ)
 
-### 4) Staging stack (VPS / pre-prod) ไม่มี tunnel
+> WebSocket (`/realtime`) ไปที่ API hostname — client สร้างจาก `NEXT_PUBLIC_API_URL` อัตโนมัติ
+
+#### 3.4 ตั้ง `.env.staging` บน VPS
 
 ```bash
 cp .env.staging.example .env.staging
-# ตั้ง JWT_SECRET และ URL จริง
-
-npm run docker:staging
+nano .env.staging   # หรือ editor ที่ถนัด
 ```
 
-เทียบเท่า:
+ตัวอย่างค่าจริง:
+
+```env
+NODE_ENV=staging
+JWT_SECRET=ใส่รหัสยาวสุ่มอย่างน้อย-32-ตัว
+
+CORS_ORIGIN=https://app.yourdomain.com
+NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+
+CLOUDFLARE_TUNNEL_TOKEN=eyJ...tokenจากข้อ3.3...
+```
+
+หมายเหตุ:
+
+- `NEXT_PUBLIC_*` ถูก bake ตอน **build image web** — เปลี่ยนค่าแล้วต้อง `up --build` ใหม่
+- `JWT_SECRET` บังคับ (compose จะไม่ขึ้นถ้าไม่ใส่)
+- อย่า commit `.env.staging`
+
+#### 3.5 รันทั้งก้อนครั้งแรก
+
+แนะนำใช้ `--env-file .env.staging` ชัดเจน (สคริปต์ `npm run docker:staging:tunnel` อ่านจากไฟล์ `.env` เป็นหลัก ไม่ใช่ `.env.staging`):
+
+```bash
+# ที่รากโปรเจกต์บน VPS
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --profile tunnel up --build -d
+```
+
+ทางเลือก: `cp .env.staging .env` แล้วค่อย `npm run docker:staging:tunnel`
+
+ตรวจสถานะ:
+
+```bash
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging ps
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging logs -f --tail=100
+```
+
+เปิดเบราว์เซอร์ที่ `https://app.yourdomain.com` → Start session / Join ควรคุยกับ `https://api.yourdomain.com`
+
+#### 3.6 อัปเดตโค้ดบน VPS
+
+```bash
+cd flowboard
+git pull
+
+# rebuild + รีสตาร์ททั้งก้อน (web ต้อง build ใหม่ถ้าแก้ frontend หรือ NEXT_PUBLIC_*)
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --profile tunnel up --build -d
+```
+
+อัปเดตเฉพาะบาง service:
+
+```bash
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --profile tunnel up --build -d api
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --profile tunnel up --build -d web
+```
+
+#### 3.7 หยุด / ลบ
+
+```bash
+# หยุด containers (เก็บ volumes)
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --profile tunnel down
+
+# หยุดและลบ volumes (NATS data หาย)
+docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --profile tunnel down -v
+```
+
+#### 3.8 รันบน VPS แบบไม่มี tunnel (เข้าได้แค่ในเครือข่าย VPS)
 
 ```bash
 docker compose -f docker/docker-compose.staging.yml --env-file .env.staging up --build -d
 ```
 
----
+compose นี้ **ไม่ได้ publish พอร์ต** ออก host — เหมาะกับ tunnel เป็นทางเข้าหลัก  
+ถ้าจะเปิดพอร์ตเอง / ใส่ Nginx-Caddy บน host ต้องแก้ compose เพิ่มเอง (ดูแนวทาง proxy จาก `docker/caddy/Caddyfile.trycloudflare`)
 
-### 5) Staging + Cloudflare named tunnel (โดเมนจริง)
+#### 3.9 Checklist หลังขึ้น VPS
 
-ต้องมี Cloudflare Tunnel ที่สร้างไว้แล้ว และใส่ token ใน `.env.staging`:
+- [ ] `https://app.yourdomain.com` โหลด UI ได้
+- [ ] `https://api.yourdomain.com/ready` ตอบ OK
+- [ ] Start session ได้ join code
+- [ ] เครื่องอื่น Join ด้วยรหัสได้ (CORS ต้องเป็น origin ของแอป)
+- [ ] รีเฟรช / Install PWA จาก **โดเมนจริง** (ไม่ใช่ trycloudflare)
+- [ ] `JWT_SECRET` ไม่ใช่ค่า example
+- [ ] Firewall VPS: เปิด SSH; **ไม่จำเป็น** เปิด 80/443 ถ้าใช้ tunnel อย่างเดียว
 
-```env
-CLOUDFLARE_TUNNEL_TOKEN=...
-CORS_ORIGIN=https://your-domain.example
-NEXT_PUBLIC_APP_URL=https://your-domain.example
-NEXT_PUBLIC_API_URL=https://your-domain.example/api
-JWT_SECRET=strong-secret
-```
+#### 3.10 ต่างจากโหมด Workers + trycloudflare ยังไง
 
-```bash
-npm run docker:staging:tunnel
-```
-
-เทียบเท่า:
-
-```bash
-docker compose -f docker/docker-compose.staging.yml --env-file .env.staging --profile tunnel up --build -d
-```
-
-ตั้ง public hostname ของ tunnel ให้ชี้ไปยัง service ใน Docker network ตามที่คุณ config ใน Cloudflare Zero Trust
+| | Workers + trycloudflare | VPS ทั้งก้อน |
+|--|-------------------------|---------------|
+| เว็บ | Cloudflare Workers | container `web` บน VPS |
+| API | เครื่องคุณ / tunnel ชั่วคราว | container `api` บน VPS (โดเมนคงที่) |
+| Join ตอนปิดเครื่องคุณ | ไม่ได้ | ได้ ถ้ารัน VPS ค้าง |
+| ต้องมีโดเมน | ไม่บังคับ (`*.workers.dev`) | แนะนำมีโดเมน + Named Tunnel |
 
 ---
 
 ## เลือกโหมดไหนดี
 
-| เป้าหมาย | คำสั่ง |
+| เป้าหมาย | ทำอะไร |
 |----------|--------|
-| เทส/พัฒนา full stack (hot reload ใน Docker) | `npm run docker:local` |
-| พัฒนาโค้ดบน host | `docker:dev` + `npm run dev` |
-| แชร์ UI ชั่วคราวจาก `npm run dev` | + `docker:dev:tunnel` |
-| Demo เต็มระบบผ่านเน็ต (ไม่ต้องมีโดเมน) | `npm run trycloudflare` |
-| Deploy บน VPS | `docker:staging` |
-| Deploy บน VPS + โดเมน Cloudflare | `docker:staging:tunnel` |
+| พัฒนาโค้ด (hot reload) | `npm run docker:local` หรือ `docker:dev` + `npm run dev` |
+| Demo ให้คนนอก Install คงที่ + Join ได้ (ไม่เช่า VPS) | Setup Cloudflare Workers (§A) แล้วใช้ §B ทุกครั้ง |
+| Demo เร็วผ่านเน็ตโดยไม่ deploy Workers | `npm run trycloudflare` (อย่า Install จาก trycloudflare) |
+| รันทั้งก้อนบน VPS / โดเมนจริง | §3 Deploy VPS (`docker:staging:tunnel`) |
 
 ---
 
@@ -220,24 +402,27 @@ npm test
 npm run test:e2e
 ```
 
-CI: `.github/workflows/ci.yml` (lint, typecheck, unit, docker build, e2e)
+CI: `.github/workflows/ci.yml`
 
 ---
 
 ## โครงสร้างหลัก
 
 ```
-apps/web          Next.js PWA
+apps/web          Next.js PWA (+ OpenNext Cloudflare)
 apps/api          Fastify (sessions, realtime)
 packages/*        errors, permissions, workflow-schema, flowpkg
 docker/           compose files + Dockerfiles + Caddy
+scripts/          trycloudflare, publish-runtime-config, cf-build-web
 ```
-
-Compose files:
 
 | ไฟล์ | ใช้ทำอะไร |
 |------|-----------|
-| `docker/docker-compose.local.yml` | Full stack local + hot reload (web/api/nats) |
-| `docker/docker-compose.dev.yml` | NATS (+ optional trycloudflare → host:3000) |
+| `docker/docker-compose.local.yml` | Full stack local + hot reload |
+| `docker/docker-compose.dev.yml` | NATS (+ optional tunnel → host:3000) |
 | `docker/docker-compose.trycloudflare.yml` | Full stack + quick tunnel |
-| `docker/docker-compose.staging.yml` | Staging/VPS (+ profile `tunnel` สำหรับ named tunnel) |
+| `docker/docker-compose.staging.yml` | Staging/VPS ทั้งก้อน (+ profile `tunnel` = Named Tunnel) |
+| `.env.staging` | Env บน VPS (gitignored) — ใช้กับ `--env-file .env.staging` |
+| `apps/web/wrangler.jsonc` | Cloudflare Worker + KV `RUNTIME_CONFIG` |
+| `.env.trycloudflare` | CORS + credentials publish KV (gitignored) |
+| `apps/web/.env.production.local` | Build env สำหรับ `cf:deploy:web` (gitignored) |
