@@ -1060,15 +1060,33 @@ export function BoardCanvas({ pageId }: { pageId: string }) {
         {showObjectColor ? (
           <>
             {selectedStickies.length > 0 ? (
-              <RgbColorControls
-                label={t("objectFill")}
-                value={selectedStickies[0]!.color}
-                presets={STICKY_PRESETS}
-                disabled={!canEdit}
-                onChange={applyStickyColor}
-                channelLabel={(channel) => t(`penRgb.${channel}`)}
-                pickerLabel={t("penRgbPicker")}
-              />
+              <>
+                <RgbColorControls
+                  label={t("objectFill")}
+                  value={selectedStickies[0]!.color}
+                  presets={STICKY_PRESETS}
+                  disabled={!canEdit}
+                  onChange={applyStickyColor}
+                  channelLabel={(channel) => t(`penRgb.${channel}`)}
+                  pickerLabel={t("penRgbPicker")}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!canEdit}
+                  onClick={() => {
+                    const stickyId = selectedStickies[0]?.id;
+                    if (!stickyId) {
+                      return;
+                    }
+                    setTool("select");
+                    selectBoardItem(stickyId, false);
+                    setEditObjectId(stickyId);
+                  }}
+                >
+                  {t("editStickyText")}
+                </Button>
+              </>
             ) : null}
             {selectedShapes.length > 0 ? (
               <>

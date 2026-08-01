@@ -55,6 +55,7 @@
     "penRgbPicker": "Custom color",
     "objectFill": "Fill",
     "objectStroke": "Stroke",
+    "editStickyText": "Add text",
     "penRgb": {
       "r": "Red",
       "g": "Green",

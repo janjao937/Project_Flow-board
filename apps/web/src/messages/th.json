@@ -55,6 +55,7 @@
     "penRgbPicker": "เลือกสีเอง",
     "objectFill": "สีพื้น",
     "objectStroke": "สีเส้น",
+    "editStickyText": "เพิ่มข้อความ",
     "penRgb": {
       "r": "แดง",
       "g": "เขียว",
