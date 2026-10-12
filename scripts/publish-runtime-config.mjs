@@ -51,15 +51,17 @@ function readEnvFiles() {
 
 readEnvFiles();
 
+function writeLocalMirror(payload) {
+  fs.writeFileSync(localMirror, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
 export async function publishRuntimeConfig(baseUrl, { quiet = false } = {}) {
   const token = process.env.CLOUDFLARE_API_TOKEN ?? "";
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? "";
   const namespaceId = process.env.FLOWBOARD_CF_KV_NAMESPACE_ID ?? "";
   const normalized = (baseUrl ?? "").replace(/\/$/, "");
   const updatedAt = new Date().toISOString();
-  const payload = { apiBaseUrl: normalized, updatedAt };
-
-  fs.writeFileSync(localMirror, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  const payload = { apiBaseUrl: normalized, updatedAt, published: false };
 
   if (!token || !accountId || !namespaceId) {
     if (!quiet) {
@@ -68,17 +70,18 @@ export async function publishRuntimeConfig(baseUrl, { quiet = false } = {}) {
       );
       console.warn(`Wrote local mirror only: ${localMirror}`);
     }
+    writeLocalMirror(payload);
     return { published: false, payload };
   }
 
+  const kvBase = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/`;
   const entries = [
     ["apiBaseUrl", normalized],
     ["updatedAt", updatedAt],
   ];
 
   for (const [key, value] of entries) {
-    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`;
-    const response = await fetch(url, {
+    const response = await fetch(`${kvBase}${encodeURIComponent(key)}`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -93,10 +96,27 @@ export async function publishRuntimeConfig(baseUrl, { quiet = false } = {}) {
     }
   }
 
+  // KV PUT returning 2xx does not prove the value will be served; read the
+  // primary key back (404 is expected only when publishing an empty/cleared value).
+  // A mismatch or missing read-back makes the publish failure loud instead of silent.
+  const readBack = await fetch(`${kvBase}${encodeURIComponent("apiBaseUrl")}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const readBackValue = readBack.ok ? (await readBack.text()).trim().replace(/\/$/, "") : null;
+  const expected = normalized === "" ? "" : normalized;
+  const isExpected = normalized === "" ? readBack.status === 404 || readBackValue === "" : readBackValue === expected;
+  if (!isExpected) {
+    throw new Error(
+      `KV read-back after publish does not match (expected "${expected || "(empty)"}", got HTTP ${readBack.status} "${readBackValue ?? "(no body)"}") — the value may not have propagated; retry publish`,
+    );
+  }
+
+  const publishedPayload = { ...payload, published: true };
   if (!quiet) {
     console.log(`Runtime config published to Cloudflare KV: apiBaseUrl=${normalized || "(cleared)"}`);
   }
-  return { published: true, payload };
+  writeLocalMirror(publishedPayload);
+  return { published: true, payload: publishedPayload };
 }
 
 const isMain =

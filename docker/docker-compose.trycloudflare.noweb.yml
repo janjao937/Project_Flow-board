@@ -1,0 +1,67 @@
+name: flowboard-trycloudflare
+
+# API-only variant (no bundled web UI).
+# The frontend is deployed to Cloudflare Workers (`npm run cf:deploy:web`),
+# so this stack serves only the API behind a trycloudflare tunnel.
+# Routing contract is identical to the full variant:
+#   apiBaseUrl = https://<tunnel>/api  (Caddy strips /api -> api:4000)
+# nats/api service definitions MUST stay byte-identical to
+# docker-compose.trycloudflare.yml so compose reuses those containers
+# when switching between variants (sessions survive mode switches).
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    environment:
+      NODE_ENV: staging
+      PORT: 4000
+      HOST: 0.0.0.0
+      # Prefer stable Cloudflare Free web origin, e.g. https://flowboard.<subdomain>.workers.dev
+      # Comma-separated origins supported. Default * for quick demos.
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-trycloudflare-dev-secret-change-me}
+    depends_on:
+      - nats
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/ready').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  edge:
+    # No `web` backend here — non-API paths answer 404 api-only (see Caddyfile).
+    image: caddy:2.9-alpine
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Local / LAN API access without Cloudflare (UI is on Cloudflare Workers).
+      - "${FLOWBOARD_LOCAL_PORT:-3080}:80"
+    volumes:
+      - ./caddy/Caddyfile.trycloudflare.noweb:/etc/caddy/Caddyfile:ro
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://edge:80
+    depends_on:
+      - edge
+    # Avoid endless restart loops when Quick Tunnel returns 429.
+    # The start script stops cloudflared on rate-limit and tells you when to retry.
+    restart: on-failure

@@ -1,0 +1,31 @@
+:80 {
+	encode gzip
+
+	@api path /api /api/*
+	handle @api {
+		uri strip_prefix /api
+		reverse_proxy api:4000
+	}
+
+	handle /realtime* {
+		reverse_proxy api:4000
+	}
+
+	handle /health {
+		reverse_proxy api:4000
+	}
+
+	handle /ready {
+		reverse_proxy api:4000
+	}
+
+	# API-only origin: no bundled web UI.
+	# The frontend lives on Cloudflare Workers, so any other path
+	# gets a clear JSON 404 instead of a 502 from a missing web:3000.
+	handle {
+		header Content-Type application/json
+		respond `{"error":"api-only","status":404,"hint":"Flowboard UI is deployed on Cloudflare Workers. This trycloudflare URL serves the API only."}` 404 {
+			close
+		}
+	}
+}

@@ -6,7 +6,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const composeFile = path.join("docker", "docker-compose.trycloudflare.yml");
+// --no-web: API-only variant (frontend lives on Cloudflare Workers).
+// Uses docker-compose.trycloudflare.noweb.yml; nats/api definitions are
+// identical to the full variant, so those containers (and their sessions)
+// survive switching modes. A stale `web` container is removed via --remove-orphans.
+const noWeb = process.argv.includes("--no-web");
+const stackMode = noWeb ? "noweb" : "full";
+const composeFile = noWeb
+  ? path.join("docker", "docker-compose.trycloudflare.noweb.yml")
+  : path.join("docker", "docker-compose.trycloudflare.yml");
 const projectName = "flowboard-trycloudflare";
 const urlFile = path.join(root, "trycloudflare-url.txt");
 const envTrycloudflare = path.join(root, ".env.trycloudflare");
@@ -129,12 +137,22 @@ function printAccessUrls(publicUrl) {
     console.log(`  ${publicUrl}`);
     console.log("");
   }
-  console.log("  LOCAL URL (ใช้ติดตั้ง/ใช้งานในเครื่องหรือ LAN — ใช้ได้แม้ปิด Cloudflare)");
+  if (noWeb) {
+    console.log("  API-ONLY (ไม่มีเว็บใน Docker — หน้าเว็บหลักอยู่บน Cloudflare Workers)");
+    console.log("  LOCAL API (เฉพาะ /api /realtime /ready — ไว้ใช้ debug หรือ LAN)");
+  } else {
+    console.log("  LOCAL URL (ใช้ติดตั้ง/ใช้งานในเครื่องหรือ LAN — ใช้ได้แม้ปิด Cloudflare)");
+  }
   for (const url of localUrls) {
     console.log(`  ${url}`);
   }
   console.log("");
-  console.log("  Host: เปิดลิงก์ → Start session → ส่ง join code");
+  if (noWeb) {
+    console.log("  เว็บ: เปิดลิงก์ workers.dev ที่ deploy ไว้ (frontend บน Cloudflare)");
+    console.log("  API ถูกเรียกผ่าน PUBLIC URL ข้างบน (runtime config ชี้ <url>/api อัตโนมัติ)");
+  } else {
+    console.log("  Host: เปิดลิงก์ → Start session → ส่ง join code");
+  }
   console.log("  ปิดเฉพาะ tunnel: Ctrl+C หรือ stop-trycloudflare-tunnel.bat");
   console.log("  หยุดทั้ง stack: stop-trycloudflare.bat");
   console.log(`${line}\n`);
@@ -147,6 +165,7 @@ function saveUrl(publicUrl, meta = {}) {
   const body = [
     publicUrl || "(no public tunnel)",
     "",
+    `mode=${stackMode}`,
     `localUrl=${localUrls[0]}`,
     ...localUrls.slice(1).map((url) => `lanUrl=${url}`),
     `updatedAt=${updatedAt}`,
@@ -162,7 +181,7 @@ function saveWaiting() {
   const updatedAt = new Date().toISOString();
   fs.writeFileSync(
     urlFile,
-    [`waiting for trycloudflare URL...`, "", `localUrl=http://127.0.0.1:${localPort}`, `updatedAt=${updatedAt}`, `status=waiting`].join(
+    [`waiting for trycloudflare URL...`, "", `mode=${stackMode}`, `localUrl=http://127.0.0.1:${localPort}`, `updatedAt=${updatedAt}`, `status=waiting`].join(
       "\n",
     ) + "\n",
     "utf8",
@@ -196,7 +215,7 @@ async function waitForPublicUrl(sinceIso, timeoutMs = 180_000) {
       console.error("Stopping cloudflared so retries do not make the limit worse...");
       dockerSync(composeArgs(["stop", "cloudflared"]), { stdio: "inherit" });
       console.error("");
-      console.error("Local app is still available:");
+      console.error(noWeb ? "Local API is still up (UI stays on Cloudflare Workers):" : "Local app is still available:");
       for (const url of localAccessUrls()) {
         console.error(`  ${url}`);
       }
@@ -226,7 +245,7 @@ async function shutdownTunnelOnly() {
   }
   console.log("");
   console.log("Public trycloudflare URL is offline.");
-  console.log("Keep using Flowboard locally:");
+  console.log(noWeb ? "Local API is still up (UI stays on Cloudflare Workers):" : "Keep using Flowboard locally:");
   for (const url of localUrls) {
     console.log(`  ${url}`);
   }
@@ -237,15 +256,25 @@ async function shutdownTunnelOnly() {
 
 ensureDocker();
 
-console.log("Starting Flowboard (detached): web + api + nats + caddy + tunnel");
+console.log(
+  noWeb
+    ? "Starting Flowboard API-only stack (detached): api + nats + caddy + tunnel (no web)"
+    : "Starting Flowboard (detached): web + api + nats + caddy + tunnel",
+);
 console.log("No custom domain needed — Cloudflare assigns a random *.trycloudflare.com URL.");
-console.log(`Local access (no Cloudflare): http://127.0.0.1:${localPort}`);
-console.log("First run may take a few minutes to build images.\n");
+if (noWeb) {
+  console.log("Frontend: Cloudflare Workers (npm run cf:deploy:web) — this stack serves the API only.");
+  console.log("Leftover `web` container from the full variant is removed automatically (--remove-orphans).");
+  console.log(`Local access (no Cloudflare, API only): http://127.0.0.1:${localPort}`);
+} else {
+  console.log(`Local access (no Cloudflare): http://127.0.0.1:${localPort}`);
+}
+console.log(noWeb ? "First run builds only the api image (fast).\n" : "First run may take a few minutes to build images.\n");
 
 saveWaiting();
 console.log(`URL file reset: ${urlFile}`);
 
-const up = dockerSync(composeArgs(["up", "--build", "-d"]), {
+const up = dockerSync(composeArgs(noWeb ? ["up", "--build", "-d", "--remove-orphans"] : ["up", "--build", "-d"]), {
   stdio: "inherit",
 });
 if (up.status !== 0) {
@@ -294,6 +323,7 @@ try {
 } catch (error) {
   console.warn("Runtime config publish failed:", error instanceof Error ? error.message : error);
   console.warn("Cloudflare Free clients will not Join until KV is updated.");
+  console.warn(`Fix: node scripts/publish-runtime-config.mjs ${url}/api  (then reload the web app)`);
 }
 
 process.on("SIGINT", () => {
@@ -306,7 +336,7 @@ process.on("SIGTERM", () => {
 console.log("Following cloudflared logs (API health spam hidden).");
 console.log("Ctrl+C = stop PUBLIC tunnel only (local app keeps running).\n");
 const logs = dockerSpawn(
-  composeArgs(["logs", "-f", "--no-color", "cloudflared", "edge", "web"]),
+  composeArgs(["logs", "-f", "--no-color", "cloudflared", "edge", ...(noWeb ? [] : ["web"])]),
   {
     stdio: "inherit",
   },
