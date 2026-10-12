@@ -46,6 +46,20 @@
 
 **ห้ามลืม:** ค่า `apiBaseUrl` ที่ publish ลง KV ต้องมี `/api` ต่อท้ายเสมอ (เช่น `https://xxx.trycloudflare.com/api`) — เพราะ client ประกอบ URL เป็น `apiBaseUrl + "/sessions"` และ WebSocket `apiBaseUrl + "/realtime"`
 
+### เลือกโหมดของ stack ของเครื่อง (full vs ไม่มี web)
+
+เมื่อ frontend deploy บน Cloudflare Workers แล้ว container `web` ใน Docker **ไม่จำเป็น** — มี 2 โหมดให้เลือก (compose file คนละไฟล์, project name เดียวกัน, สลับไปมาได้):
+
+| | **full** (default) | **noweb** (API-only) |
+|---|---|---|
+| คำสั่งเริ่ม | `npm run trycloudflare` | `npm run trycloudflare:noweb` / `start-trycloudflare-noweb.bat` |
+| Services | web + api + nats + caddy + cloudflared | api + nats + caddy + cloudflared — **ไม่ build Dockerfile.web** |
+| เวลา start | นาน (build web ครั้งแรก) | เร็ว (build เฉพาะ api) |
+| เปิดเว็บที่ | LOCAL port 3080 **หรือ** URLs บน Workers | URLs บน Workers เท่านั้น (เปิด LOCAL port 3080 → ได้ JSON 404 แจ้งว่า api-only) |
+| ใช้เมื่อ | อยากมี UI ให้ใช้ผ่าน LAN แม้ไม่ deploy Workers / debug UI ใน Docker | ใช้งานผ่าน Workers เป็นหลักแล้ว (แนะนำในชีวิตประจำวัน) |
+
+> สลับโหมด: รันคำสั่งอีกโหมดได้เลย — สคริปต์จะลบ/สร้าง service ที่เกี่ยวข้องให้เอง (`--remove-orphans`) แต่ **api จะถูก restart → session หาย ต้อง Start/Join ใหม่** (nats container ใช้ต่อได้)
+
 ---
 
 ## 2. Pre-requisites
@@ -125,21 +139,26 @@ curl https://flowboard-web.<subdomain>.workers.dev/runtime-config.json          
 
 ## 5. รัน Backend + Tunnel (คำสั่งหลักของทุกวัน)
 
+เลือกโหมดเดียวที่ต้องการ (ความต่างดูตารางใน §1):
+
 ```bash
-npm run trycloudflare
-# หรือดับเบิลคลิก start-trycloudflare.bat (Windows)
+npm run trycloudflare            # โหมด full: web + api + nats + caddy + tunnel
+# หรือดับเบิลคลิก start-trycloudflare.bat
+
+npm run trycloudflare:noweb      # โหมด API-only: ไม่มี web (frontend อยู่บน Workers)
+# หรือดับเบิลคลิก start-trycloudflare-noweb.bat
 ```
 
-สิ่งที่สคริปต์ทำให้**อัตโนมัติทีละขั้น**:
+สิ่งที่สคริปต์ทำให้**อัตโนมัติทีละขั้น** (ทั้งสองโหมด):
 
 | ขั้น | สิ่งที่เกิด |
 |---|---|
 | 1 | เช็ค Docker พร้อม (`docker compose version`) |
-| 2 | `docker compose up --build -d` ขึ้น nats → api (รอ healthy) → web (รอ healthy) → caddy |
+| 2 | `up --build -d` ขึ้น nats → api (รอ healthy) → [web ใน full] (รอ healthy) → caddy; noweb จะลบ container `web` เก่าให้เอง (`--remove-orphans`) |
 | 3 | force-recreate container `cloudflared` → ได้ **URL ใหม่ทุกครั้ง** |
 | 4 | อ่าน log cloudflared จนเจอ URL (รอสูงสุด 3 นาที) |
-| 5 | save URL ลง `trycloudflare-url.txt` |
-| 6 | **publish `apiBaseUrl = <url>/api` ลง Cloudflare KV** (retry 3 ครั้ง) |
+| 5 | save URL ลง `trycloudflare-url.txt` (มี `mode=noweb/full` บอกโหมดที่รัน) |
+| 6 | **publish `apiBaseUrl = <url>/api` ลง Cloudflare KV** (retry 3 ครั้ง + ตรวจสอบกลับหลังเขียน — ถ้าล้มเหลวสคริปต์จะบอกวิธี fix) |
 | 7 | `docker compose logs -f` ตามดู log — กด Ctrl+C = ปิด**เฉพาะ tunnel** |
 
 ผลลัพธ์ที่ประสบความสำเร็จจะเห็น:
@@ -168,6 +187,7 @@ Runtime config published to Cloudflare KV: apiBaseUrl=https://xxx.trycloudflare.
 | แค่ URL tunnel หลุด/อยากรอบใหม่ | `npm run trycloudflare` — KV อัปเดตให้เอง | **ไม่ต้อง redeploy เว็บ** |
 
 > โค้ด API อยู่ใน image → update = rebuild image ผ่านสคริปต์เริ่มเดียวจบ ไม่ต้อง build เอง
+> (รันโหมดไหนอยู่ก็ใช้คำสั่งโหมดนั้นรันใหม่: `trycloudflare` หรือ `trycloudflare:noweb`)
 
 ---
 
@@ -195,7 +215,7 @@ npm run trycloudflare                    # ขึ้นใหม่ + tunnel ใ
 ```
 **ผลของการ restart:** session เก่าหายหมด (สถานะในหน่วยความจำ) — ผู้ใช้ต้อง Start/Join ใหม่ด้วยโค้ดใหม่
 
-### 7.3 restart เฉพาะ service ตัวใดตัวหนึ่ง (debug)
+### 7.3 restart เฉพาะ service ตัวใดตัวหนึ่ง (debug) — ใช้ได้ทั้งสองโหมด
 
 ```bash
 docker compose -p flowboard-trycloudflare -f docker/docker-compose.trycloudflare.yml restart api
@@ -226,7 +246,8 @@ npm run trycloudflare
 
 | คำสั่ง | ทำอะไร |
 |---|---|
-| `npm run trycloudflare` / `start-trycloudflare.bat` | **คำสั่งหลักของทุกวัน** — up stack + tunnel + publish KV (รายละเอียด §5) |
+| `npm run trycloudflare` / `start-trycloudflare.bat` | **โหมด full** — up stack (มี web) + tunnel + publish KV (รายละเอียด §5) |
+| `npm run trycloudflare:noweb` / `start-trycloudflare-noweb.bat` | **โหมด API-only** — ไม่มี web (frontend บน Workers), build ไว สลับโหมดย้อนกลับได้ทันทีด้วยคำสั่งข้างบน |
 | `npm run trycloudflare:stop` / `stop-trycloudflare.bat` | หยุดทั้ง stack (down --remove-orphans) |
 | `npm run trycloudflare:stop-tunnel` / `stop-trycloudflare-tunnel.bat` | หยุดเฉพาะ cloudflared + คลียร์ KV |
 | `show-trycloudflare-url.bat` | แสดง URL ปัจจุบัน (จาก txt + log ล่าสุด) |
@@ -293,9 +314,11 @@ curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://<WEB>" \
 | อาการ | สาเหตุ | วิธีแก้ |
 |---|---|---|
 | Publish KV โดน `HTTP 401 code 10000` | Token ไม่มีสิทธิ์ KV / หมดอายุ | เพิ่ม `Account → Workers KV Storage → Edit` ใน token (§3.2) — แก้ permission ไม่ต้อง Roll |
+| สคริปต์รันจบแล้วเว็บยังเรียก URL เก่า | publish ล้มเหลวชั่วคราว (ไม่ได้ตรวจย้อนหลังเขียน) | รัน `node scripts/publish-runtime-config.mjs <url>/api` ซ้ำ — ตั้งแต่วันนี้ publish script **ตรวจอ่านกลับหลังเขียนเสมอ** ถ้าไม่ตรงจะดังเป็น Error + วิธี fix ทันอันนี้ |
 | publish ผ่านแต่ `/runtime-config.json` ยังค่าเก่า | KV propagate บน edge | รอ ≤ 60 วิ แล้วดึงซ้ำ |
 | เรียก API จากเว็บโดน **CORS** (preflight fail) และ/หรือ fetch URL ไม่มี `/api` | `apiBaseUrl` ใน KV ไม่มี `/api` ต่อท้าย | `node scripts/publish-runtime-config.mjs https://<TUNNEL>/api` |
 | เรียก tunnel แล้วเจอ `HTTP 530` | Stack หรือ cloudflared ยังไม่รัน (down ไปแล้ว) | `docker compose ps` ดูสถานะ แล้ว restart ตาม §7 |
+| เปิด URL tunnel ใน browser ได้ JSON `{"error":"api-only",...}` | รันอยู่ในโหมด **noweb** — เป็นพฤติกรรมถูกต้อง (ไม่ใช่บั๊ก): tunnel ให้บริการ API เท่านั้น | เปิดเว็บจากลิงก์ workers.dev ที่ deploy ไว้; ถ้าอยากมีหน้าเว็บที่ LOCAL port → สลับกลับ full mode (`npm run trycloudflare`) |
 | เริ่ม stack ไม่ได้: `container web is unhealthy` / crash loop | ดู log ตัวนั้น (`docker logs flowboard-trycloudflare-web-1`) + แก้ตามสาเหตุ | build ใหม่: `docker compose ... build --no-cache web` |
 | tunnel ได้ 429 / error 1015 | ถูก rate limit (Cloudflare Quick Tunnel) | สคริปต์จะ stop cloudflared ให้เอง — รอ 15–30 นาที แล้วรันใหม่ ใช้ LOCAL URL (LAN) ชั่วคราวระหว่างนี้ |
 | เจอ `__name is not defined` บน browser | Browser ยังใช้ JS chunk เก่าจาก SW cache (cache-first) | DevTools → Application → Clear site data (ติ๊ก Unregister service workers) — sw v2 จะแก้ให้อัตโนมัติหลัง deploy ถัดไป |
