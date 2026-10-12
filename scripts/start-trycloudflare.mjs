@@ -104,6 +104,22 @@ function detectRateLimit(text) {
   );
 }
 
+async function publishRuntimeConfigWithRetry(baseUrl, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await publishRuntimeConfig(baseUrl);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        console.warn(`Runtime config publish attempt ${attempt}/${attempts} failed, retrying in 2s...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  throw lastError;
+}
+
 function printAccessUrls(publicUrl) {
   const localUrls = localAccessUrls();
   const line = "=".repeat(78);
@@ -204,7 +220,7 @@ async function shutdownTunnelOnly() {
   const localUrls = localAccessUrls();
   saveUrl("", { note: "tunnel-stopped-local-only" });
   try {
-    await publishRuntimeConfig("", { quiet: false });
+    await publishRuntimeConfigWithRetry("");
   } catch (error) {
     console.warn("Could not clear runtime config in Cloudflare KV:", error instanceof Error ? error.message : error);
   }
@@ -274,7 +290,7 @@ printAccessUrls(url);
 
 try {
   console.log("Publishing runtime config (apiBaseUrl) for Cloudflare-hosted clients...");
-  await publishRuntimeConfig(url);
+  await publishRuntimeConfigWithRetry(`${url}/api`);
 } catch (error) {
   console.warn("Runtime config publish failed:", error instanceof Error ? error.message : error);
   console.warn("Cloudflare Free clients will not Join until KV is updated.");

@@ -3,9 +3,20 @@ WORKDIR /repo/apps/web
 COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci
 
+WORKDIR /repo/packages/flowpkg
+COPY packages/flowpkg/package.json packages/flowpkg/package-lock.json ./
+RUN npm ci
+
+WORKDIR /repo/packages/workflow-schema
+COPY packages/workflow-schema/package.json packages/workflow-schema/package-lock.json ./
+RUN npm ci
+
 FROM node:22-alpine AS build
 WORKDIR /repo
+COPY tsconfig.base.json ./
 COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /repo/packages/flowpkg/node_modules ./packages/flowpkg/node_modules
+COPY --from=deps /repo/packages/workflow-schema/node_modules ./packages/workflow-schema/node_modules
 COPY packages ./packages
 COPY apps/web ./apps/web
 WORKDIR /repo/apps/web
@@ -15,10 +26,14 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
-FROM node:22-alpine
-WORKDIR /repo/apps/web
-ENV NODE_ENV=staging
-COPY --from=build /repo/apps/web ./
-COPY --from=build /repo/packages /repo/packages
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+COPY --from=build /repo/apps/web/.next/standalone ./
+COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build /repo/apps/web/public ./apps/web/public
+COPY --from=deps /repo/apps/web/node_modules/@swc/helpers ./apps/web/node_modules/@swc/helpers
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "apps/web/server.js"]
